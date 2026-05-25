@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="en" style="color-scheme:dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="color-scheme" content="dark">
+<title>OrcaMail — Private Wallet-to-Wallet Messaging</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --teal:#22d3ee;--teal-dark:#06b6d4;--teal-glow:rgba(34,211,238,0.15);
+  --bg:#1c2535;--bg2:#232f42;--bg3:#2a3a52;--bg4:#314460;
+  --text:#d4e4f0;--text-muted:#7a9ab8;--text-dim:#56738f;
+  --border:#2e4060;--border2:#3a5070;
+  --green:#10b981;--red:#ef4444;--amber:#f59e0b;
+}
+html,body{min-height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:16px;background:var(--bg);color:var(--text);}
+
+/* LANDING */
+#landing{min-height:100vh;background:linear-gradient(160deg,#1a2333 0%,#1e2d44 40%,#1c2f4a 70%,#1a2333 100%);display:flex;flex-direction:column;}
+.landing-nav{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:rgba(28,37,53,0.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;}
+.nav-brand{display:flex;align-items:center;gap:10px;}
+.nav-logo{width:34px;height:34px;border-radius:8px;object-fit:cover;}
+.nav-brand-name{font-weight:700;font-size:17px;color:var(--text);}
+.landing-hero{flex:1;display:flex;flex-direction:column;align-items:center;text-align:center;padding:48px 24px 80px;}
+.hero-inner{width:100%;max-width:640px;display:flex;flex-direction:column;align-items:center;gap:22px;}
+.hero-logo{width:120px;height:120px;border-radius:24px;box-shadow:0 8px 40px rgba(6,182,212,0.3);object-fit:cover;}
+.landing-title{font-size:40px;font-weight:800;line-height:1.15;color:var(--text);}
+.title-gradient{background:linear-gradient(135deg,#06b6d4,#3b82f6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.landing-subtitle{font-size:17px;color:#8eaac5;max-width:100%;line-height:1.65;}
+.landing-pills{display:flex;flex-wrap:wrap;gap:10px;justify-content:center;width:100%;}
+.pill{background:rgba(255,255,255,0.05);border:1px solid var(--border2);border-radius:999px;padding:9px 18px;font-size:14px;font-weight:500;color:#8eaac5;flex:0 0 calc(50% - 5px);text-align:center;}
+@media(min-width:480px){.pill{flex:0 0 auto;}}
+.landing-footer{text-align:center;padding:14px 24px 20px;border-top:1px solid var(--border);}
+.landing-footer-link{color:var(--text-dim);font-size:12px;text-decoration:none;transition:color 0.15s;}
+.landing-footer-link:hover{color:var(--teal);}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;border:none;border-radius:12px;font-weight:600;cursor:pointer;transition:all 0.15s;text-decoration:none;font-family:inherit;}
+.btn:active{transform:scale(0.97);}
+.btn-primary{background:linear-gradient(135deg,#06b6d4,#0891b2);color:#fff;box-shadow:0 4px 18px rgba(6,182,212,0.35);}
+.btn-primary:hover{background:linear-gradient(135deg,#0891b2,#0e7490);}
+.btn-secondary{background:var(--bg3);color:var(--text);border:1px solid var(--border2);}
+.btn-secondary:hover{background:var(--bg4);}
+.btn-outline{background:transparent;border:1.5px solid var(--border2);color:var(--text-muted);font-size:13px;}
+.btn-outline:hover{border-color:var(--teal);color:var(--teal);}
+.btn-danger{background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.3);}
+.btn-danger:hover{background:rgba(239,68,68,0.25);}
+.btn-sm{padding:8px 16px;font-size:13px;border-radius:10px;}
+.btn-large{padding:18px 32px;font-size:19px;border-radius:16px;width:100%;max-width:100%;}
+.btn-green{background:#059669;color:white;box-shadow:0 4px 12px rgba(5,150,105,0.3);}
+.btn-teal{background:var(--teal);color:#fff;}
+.btn-teal:hover{background:var(--teal-dark);}
+.landing-note{font-size:13px;color:var(--text-dim);}
+.aivm-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.06);border:1px solid var(--border2);color:var(--text-muted);border-radius:999px;padding:7px 16px;font-size:12px;font-weight:600;letter-spacing:0.02em;}
+
+/* APP SHELL */
+#app{min-height:100vh;background:var(--bg);display:flex;flex-direction:column;padding-bottom:64px;}
+.app-nav{display:flex;align-items:center;justify-content:space-between;padding:12px 18px;background:var(--bg2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;gap:8px;}
+.nav-wallet{display:flex;align-items:center;gap:8px;flex-shrink:0;}
+.wallet-addr{font-size:11px;color:var(--text-muted);font-family:monospace;}
+.paid-badge{background:rgba(16,185,129,0.15);color:#6ee7b7;border:1px solid rgba(16,185,129,0.25);border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700;}
+.free-badge{background:rgba(245,158,11,0.12);color:#fcd34d;border:1px solid rgba(245,158,11,0.25);border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700;}
+.tab-content{flex:1;}
+.tab-section{padding:20px 18px;max-width:760px;margin:0 auto;width:100%;}
+
+/* BOTTOM NAV */
+.bottom-nav{position:fixed;bottom:0;left:0;right:0;background:var(--bg2);border-top:1px solid var(--border);display:flex;z-index:10;box-shadow:0 -4px 20px rgba(0,0,0,0.4);}
+.bottom-nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 4px;border:none;background:none;cursor:pointer;transition:all 0.15s;color:var(--text-dim);}
+.bottom-nav-btn.active{color:var(--teal);}
+.bottom-nav-btn:active{background:rgba(6,182,212,0.08);}
+.nav-icon{font-size:22px;line-height:1;}
+.nav-label{font-size:12px;font-weight:600;}
+.nav-badge{background:#ef4444;color:white;border-radius:999px;padding:1px 6px;font-size:10px;font-weight:700;min-width:16px;text-align:center;}
+
+/* CARDS */
+.card{background:var(--bg2);border-radius:16px;padding:20px;border:1px solid var(--border);box-shadow:0 2px 12px rgba(0,0,0,0.25);}
+.card+.card{margin-top:14px;}
+.section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+.section-title{font-size:20px;font-weight:700;color:var(--text);}
+
+/* INBOX */
+.message-item{background:var(--bg2);border-radius:14px;padding:16px 18px;border:1px solid var(--border);margin-bottom:10px;cursor:pointer;transition:all 0.15s;position:relative;}
+.message-item:hover{border-color:var(--teal-dark);box-shadow:0 2px 12px rgba(6,182,212,0.12);}
+.message-item.unread{border-left:3px solid var(--teal);background:rgba(6,182,212,0.05);}
+.message-item-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:6px;}
+.message-from{font-size:14px;font-weight:700;color:var(--teal);font-family:monospace;}
+.message-time{font-size:12px;color:var(--text-dim);white-space:nowrap;flex-shrink:0;}
+.message-subject{font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;}
+.message-preview{font-size:13px;color:var(--text-muted);overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;}
+.message-unread-dot{width:8px;height:8px;border-radius:50%;background:var(--teal);position:absolute;top:18px;right:16px;flex-shrink:0;}
+
+/* COMPOSE */
+.compose-form{display:flex;flex-direction:column;gap:16px;}
+.form-group{display:flex;flex-direction:column;gap:8px;}
+.form-label{font-size:14px;font-weight:600;color:var(--text-muted);}
+.form-input,.form-select,.form-textarea{width:100%;padding:13px 16px;border:1.5px solid var(--border2);border-radius:12px;font-size:16px;font-family:inherit;color:var(--text);background:var(--bg3);outline:none;transition:border-color 0.15s;}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--teal);}
+.form-input::placeholder,.form-textarea::placeholder{color:var(--text-dim);}
+.form-textarea{min-height:160px;resize:vertical;line-height:1.6;}
+.char-count{font-size:12px;color:var(--text-dim);text-align:right;margin-top:4px;}
+
+/* MESSAGE VIEW */
+.message-view-header{margin-bottom:20px;}
+.message-view-subject{font-size:22px;font-weight:800;color:var(--text);margin-bottom:10px;}
+.message-view-meta{display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:var(--text-muted);}
+.message-view-meta span{display:flex;align-items:center;gap:4px;}
+.message-view-body{font-size:16px;line-height:1.75;color:var(--text);white-space:pre-wrap;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:20px;}
+.lock-box{background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.25);border-radius:12px;padding:14px 16px;font-size:14px;color:var(--teal);display:flex;align-items:center;gap:10px;margin-bottom:16px;}
+
+/* SETTINGS */
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:16px 0;border-bottom:1px solid var(--border);}
+.settings-row:last-child{border-bottom:none;}
+.settings-label{font-size:15px;font-weight:600;color:var(--text);}
+.settings-sub{font-size:13px;color:var(--text-muted);margin-top:3px;}
+
+/* MODALS */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:100;display:flex;align-items:flex-end;}
+@media(min-width:600px){.modal-overlay{align-items:center;justify-content:center;padding:20px;}}
+.modal{background:var(--bg2);border-radius:24px 24px 0 0;width:100%;max-width:560px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--border2);}
+@media(min-width:600px){.modal{border-radius:20px;}}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:20px 22px 16px;border-bottom:1px solid var(--border);flex-shrink:0;}
+.modal-header h3{font-size:20px;font-weight:700;color:var(--text);}
+.modal-close{width:36px;height:36px;border:none;background:var(--bg3);border-radius:10px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;color:var(--text-muted);}
+.modal-close:hover{background:var(--bg4);color:var(--text);}
+.modal-body{flex:1;overflow-y:auto;padding:22px;display:flex;flex-direction:column;gap:18px;}
+.modal-footer{padding:16px 22px;border-top:1px solid var(--border);display:flex;gap:12px;flex-shrink:0;}
+.modal-footer .btn{flex:1;padding:15px;font-size:16px;}
+
+/* LOADING */
+.spinner{width:40px;height:40px;border:3px solid var(--bg4);border-top-color:var(--teal);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto;}
+@keyframes spin{to{transform:rotate(360deg);}}
+.loading-state{text-align:center;padding:40px 16px;display:flex;flex-direction:column;align-items:center;gap:16px;}
+.loading-state p{font-size:14px;color:var(--text-muted);}
+
+/* EMPTY STATE */
+.empty-state{text-align:center;padding:48px 16px;color:var(--text-muted);}
+.empty-state-icon{font-size:52px;margin-bottom:14px;}
+.empty-state h3{font-size:17px;font-weight:700;color:var(--text);margin-bottom:8px;}
+.empty-state p{font-size:14px;margin-bottom:22px;line-height:1.6;}
+
+/* TOAST */
+#toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--bg4);color:var(--text);border:1px solid var(--border2);padding:10px 22px;border-radius:24px;font-size:14px;font-weight:500;z-index:200;opacity:0;transition:all 0.3s;white-space:nowrap;max-width:90vw;}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+#toast.error{background:rgba(239,68,68,0.2);border-color:rgba(239,68,68,0.4);color:#fca5a5;}
+
+/* UTILS */
+.hidden{display:none!important;}
+.mt-4{margin-top:16px;}
+.mt-2{margin-top:8px;}
+.mb-4{margin-bottom:16px;}
+.text-center{text-align:center;}
+.text-muted{color:var(--text-muted);font-size:13px;}
+.divider{height:1px;background:var(--border);margin:18px 0;}
+.info-box{background:rgba(6,182,212,0.07);border:1px solid rgba(6,182,212,0.2);border-radius:10px;padding:13px;font-size:14px;color:var(--teal);line-height:1.5;}
+.warn-box{background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:10px;padding:13px;font-size:14px;color:#fcd34d;line-height:1.5;}
+.encrypt-badge{display:inline-flex;align-items:center;gap:5px;background:rgba(16,185,129,0.1);color:#6ee7b7;border:1px solid rgba(16,185,129,0.2);border-radius:999px;padding:4px 10px;font-size:12px;font-weight:600;}
+
+@media(min-width:600px){
+  .landing-title{font-size:52px;}
+  .landing-subtitle{font-size:18px;}
+  .tab-section{padding:28px 24px;}
+}
+</style>
+</head>
+<body>
+
+<!-- LANDING -->
+<div id="landing">
+  <nav class="landing-nav">
+    <div class="nav-brand">
+      <img src="orcamail-logo.png" class="nav-logo" alt="OrcaMail" onerror="this.style.display='none'">
+      <span class="nav-brand-name">OrcaMail</span>
+    </div>
+    <button class="btn btn-primary btn-sm" onclick="connectWallet()" id="nav-connect-btn">Connect Wallet</button>
+  </nav>
+  <main class="landing-hero">
+    <div class="hero-inner">
+      <img src="orca.gif" class="hero-logo" alt="OrcaMail" onerror="this.src='orcamail-logo.png'">
+      <h1 class="landing-title">Private Messaging,<br><span class="title-gradient">On-Chain</span></h1>
+      <p class="landing-subtitle">Wallet-to-wallet encrypted messages on Lightchain. Only the recipient can read what you send — not even the network can see inside.</p>
+      <div class="landing-pills">
+        <span class="pill">🔒 End-to-End Encrypted</span>
+        <span class="pill">⛓️ On Lightchain</span>
+        <span class="pill">📬 Free to Receive</span>
+        <span class="pill">🐋 Any EVM Wallet</span>
+        <span class="pill">🚫 No Email Needed</span>
+        <span class="pill">⚡ Instant Delivery</span>
+      </div>
+      <button class="btn btn-primary btn-large" onclick="connectWallet()" id="hero-connect-btn">🐋 Connect Wallet — It's Free</button>
+      <p class="landing-note">✨ Free to receive always • 5 free sends • Then $0.50/month in LCAI</p>
+      <button class="btn btn-secondary btn-sm mt-2" onclick="startAsGuest()">👀 Preview Without Wallet</button>
+      <div class="aivm-badge mt-2">⚡ Powered by Lightchain</div>
+    </div>
+  </main>
+  <footer class="landing-footer">
+    <a href="#" onclick="openModal('modal-privacy');return false;" class="landing-footer-link">🔐 Privacy Policy</a>
+  </footer>
+</div>
+
+<!-- APP -->
+<div id="app" style="display:none">
+  <nav class="app-nav">
+    <div class="nav-brand" onclick="goLanding()" style="cursor:pointer" title="Home">
+      <img src="orcamail-logo.png" class="nav-logo" alt="OrcaMail" onerror="this.style.display='none'">
+      <span class="nav-brand-name" style="font-size:15px">OrcaMail</span>
+    </div>
+    <div class="nav-wallet">
+      <button class="btn btn-outline btn-sm" onclick="openModal('modal-help')" title="Help" style="font-size:16px;padding:6px 10px;">❓</button>
+      <span id="nav-payment-badge"></span>
+      <span id="nav-wallet-addr" class="wallet-addr"></span>
+      <button class="btn btn-outline btn-sm" id="btn-disconnect" onclick="disconnectWallet()" style="display:none">Disconnect</button>
+    </div>
+  </nav>
+
+  <div id="tab-content" class="tab-content">
+    <!-- INBOX TAB -->
+    <div id="tab-inbox" class="tab-section">
+      <div class="section-header">
+        <h2 class="section-title">📬 Inbox</h2>
+        <button class="btn btn-primary btn-sm" onclick="loadInbox(true)">🔄 Refresh</button>
+      </div>
+      <div id="optin-banner" class="info-box mb-4" style="display:none">
+        ⚠️ You need to <strong>opt in</strong> to receive messages. Tap below to register your encryption key.
+        <br><button class="btn btn-teal btn-sm" style="margin-top:10px" onclick="doOptIn()">✅ Opt In to Receive Messages</button>
+      </div>
+      <div id="inbox-content"></div>
+    </div>
+
+    <!-- COMPOSE TAB -->
+    <div id="tab-compose" class="tab-section" style="display:none">
+      <div class="section-header">
+        <h2 class="section-title">✏️ Compose</h2>
+      </div>
+      <div class="card" id="compose-guest-warn" style="display:none">
+        <div class="warn-box">Connect a wallet to send messages.</div>
+      </div>
+      <div class="card compose-form" id="compose-form-wrap">
+        <div class="form-group">
+          <label class="form-label">To (wallet address)</label>
+          <input type="text" id="compose-to" class="form-input" placeholder="0x..." autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Subject</label>
+          <input type="text" id="compose-subject" class="form-input" placeholder="What's this about?">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Message</label>
+          <textarea id="compose-body" class="form-textarea" placeholder="Write your message here..." oninput="updateCharCount()"></textarea>
+          <div class="char-count"><span id="char-count">0</span> / 2000 characters</div>
+        </div>
+        <div class="encrypt-badge">🔒 Encrypted end-to-end — only the recipient can read this</div>
+        <div id="compose-sends-left" class="text-muted"></div>
+        <button class="btn btn-primary" style="padding:15px;font-size:16px" onclick="sendMessage()">📤 Send Encrypted Message</button>
+      </div>
+    </div>
+
+    <!-- SETTINGS TAB -->
+    <div id="tab-settings" class="tab-section" style="display:none">
+      <div class="section-header">
+        <h2 class="section-title">⚙️ Settings</h2>
+      </div>
+      <div class="card">
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">Wallet</div>
+            <div class="settings-sub" id="settings-wallet">Not connected</div>
+          </div>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">Opt-In Status</div>
+            <div class="settings-sub" id="settings-optin-status">Checking...</div>
+          </div>
+          <button class="btn btn-teal btn-sm" id="btn-optin-toggle" onclick="doOptIn()" style="display:none">Opt In</button>
+          <button class="btn btn-danger btn-sm" id="btn-optout-toggle" onclick="confirmOptOut()" style="display:none">Opt Out</button>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">Subscription</div>
+            <div class="settings-sub" id="settings-sub-status">Checking...</div>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="openModal('modal-payment')" id="btn-subscribe" style="display:none">Subscribe</button>
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-label">Free Sends Remaining</div>
+            <div class="settings-sub" id="settings-free-sends">—</div>
+          </div>
+        </div>
+      </div>
+      <div class="card mt-4">
+        <div class="section-title" style="margin-bottom:14px;font-size:16px;color:var(--teal)">🔒 Encryption Info</div>
+        <div class="text-muted" style="line-height:1.7;font-size:14px">
+          OrcaMail uses <strong style="color:var(--text)">ECIES encryption</strong> (secp256k1 ECDH + AES-256-GCM) — the same cryptography as your Ethereum wallet. Your public key is derived from your wallet signature. Nobody — not even this server — can read your messages.
+        </div>
+        <div style="margin-top:16px">
+          <button class="btn btn-secondary btn-sm" onclick="testEncryption()" id="btn-test-crypto">🔑 Test Encryption</button>
+          <div id="test-crypto-result" style="margin-top:10px;font-size:13px;display:none"></div>
+        </div>
+      </div>
+      <div style="margin-top:16px;text-align:center">
+        <button class="btn btn-danger btn-sm" onclick="disconnectWallet()">Disconnect Wallet</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM NAV -->
+  <nav class="bottom-nav">
+    <button class="bottom-nav-btn active" id="nav-btn-inbox" onclick="showTab('inbox')">
+      <span class="nav-icon">📬</span>
+      <span class="nav-label">Inbox</span>
+    </button>
+    <button class="bottom-nav-btn" id="nav-btn-compose" onclick="showTab('compose')">
+      <span class="nav-icon">✏️</span>
+      <span class="nav-label">Compose</span>
+    </button>
+    <button class="bottom-nav-btn" id="nav-btn-settings" onclick="showTab('settings')">
+      <span class="nav-icon">⚙️</span>
+      <span class="nav-label">Settings</span>
+    </button>
+  </nav>
+</div>
+
+<!-- MODAL: MESSAGE VIEW -->
+<div id="modal-message" class="modal-overlay" style="display:none" onclick="overlayClose(event,'modal-message')">
+  <div class="modal" style="max-height:92vh">
+    <div class="modal-header">
+      <h3 id="modal-msg-subject">Message</h3>
+      <button class="modal-close" onclick="closeModal('modal-message')">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <div class="lock-box">🔒 Decrypted locally in your browser — never sent to any server in readable form</div>
+      <div class="message-view-meta">
+        <span>📤 <strong id="modal-msg-from">—</strong></span>
+        <span>🕐 <span id="modal-msg-time">—</span></span>
+      </div>
+      <div class="divider"></div>
+      <div class="message-view-body" id="modal-msg-body"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-message')">Close</button>
+      <button class="btn btn-primary" onclick="replyToMessage()">↩ Reply</button>
+      <button class="btn btn-danger" onclick="deleteCurrentMessage()">🗑 Delete</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: PAYMENT -->
+<div id="modal-payment" class="modal-overlay" style="display:none" onclick="overlayClose(event,'modal-payment')">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>💳 Subscribe to OrcaMail</h3>
+      <button class="modal-close" onclick="closeModal('modal-payment')">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <div class="info-box">Unlock unlimited sending for 30 days. Price is calculated in LCAI based on live exchange rate (~$0.50 USD).</div>
+      <div style="text-align:center;padding:20px 0">
+        <div style="font-size:48px;font-weight:900;color:var(--teal)" id="pay-lcai-amount">—</div>
+        <div style="font-size:14px;color:var(--text-muted);margin-top:6px">LCAI for 30 days unlimited sending</div>
+        <div style="font-size:13px;color:var(--text-muted);margin-top:4px">≈ $0.50 USD at current price</div>
+      </div>
+      <div class="warn-box">Your wallet will prompt you to approve a transaction on Lightchain (chain ID 9200). Make sure you're on the right network.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-payment')">Cancel</button>
+      <button class="btn btn-primary" onclick="paySubscription()">⚡ Pay with LCAI</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: OPTIN -->
+<div id="modal-optin" class="modal-overlay" style="display:none" onclick="overlayClose(event,'modal-optin')">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>📬 Opt In to Receive Messages</h3>
+      <button class="modal-close" onclick="closeModal('modal-optin')">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <div class="info-box">Opting in registers your wallet so others can send you encrypted messages. It derives your encryption public key from a wallet signature — <strong>free, no transaction needed</strong>.</div>
+      <div style="font-size:15px;color:var(--text-muted);line-height:1.7">
+        Your wallet will ask you to sign a message. This signature is used to derive your encryption key. Nothing is sent to the blockchain — it's instant and free.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-optin')">Cancel</button>
+      <button class="btn btn-primary" onclick="confirmOptIn()">✅ Sign & Opt In</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: OPTOUT -->
+<div id="modal-optout" class="modal-overlay" style="display:none" onclick="overlayClose(event,'modal-optout')">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>🚪 Opt Out</h3>
+      <button class="modal-close" onclick="closeModal('modal-optout')">&#x2715;</button>
+    </div>
+    <div class="modal-body">
+      <div class="info-box" style="background:rgba(239,68,68,0.08);border-color:rgba(239,68,68,0.25);color:var(--text)">
+        ⚠️ Opting out removes your encryption key from the server. <strong>New senders will not be able to reach you</strong> until you opt back in. Messages already in your inbox are not affected.
+      </div>
+      <div style="font-size:14px;color:var(--text-muted);line-height:1.7;margin-top:12px">
+        You can always opt back in at any time — just tap Opt In again and sign with your wallet.
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-optout')">Cancel</button>
+      <button class="btn btn-danger" onclick="doOptOut()">🚪 Yes, Opt Out</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: HELP -->
+<div id="modal-help" class="modal-overlay" style="display:none" onclick="overlayClose(event,'modal-help')">
+  <div class="modal" style="max-width:600px;max-height:92vh">
+    <div class="modal-header">
+      <h3>❓ How to Use OrcaMail</h3>
+      <button class="modal-close" onclick="closeModal('modal-help')">&#x2715;</button>
+    </div>
+    <div class="modal-body" style="gap:0">
+
+      <div style="background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.22);border-radius:12px;padding:18px 20px;margin-bottom:20px">
+        <div style="font-size:17px;font-weight:800;color:#dce8f5;margin-bottom:8px">🐬 Welcome to OrcaMail</div>
+        <div style="font-size:15px;color:#8eaac5;line-height:1.7">OrcaMail lets you send private, encrypted messages between crypto wallets on Lightchain. Only the recipient can read your message — not the server, not the network, nobody else.</div>
+      </div>
+
+      <div style="margin-bottom:20px">
+        <div style="font-size:16px;font-weight:800;color:#06b6d4;margin-bottom:12px">🚀 Getting Started</div>
+        <div style="font-size:15px;color:#8eaac5;line-height:1.75">
+          Connect your MetaMask, Trust Wallet, or any EVM wallet using the <strong style="color:#dce8f5">Connect Wallet</strong> button. Once connected, tap <strong style="color:#dce8f5">Opt In</strong> — this registers your wallet so others can send you messages. Opting in is free and doesn't require a transaction.
+        </div>
+      </div>
+      <div style="height:1px;background:#2e4060;margin-bottom:20px"></div>
+
+      <div style="margin-bottom:20px">
+        <div style="font-size:16px;font-weight:800;color:#06b6d4;margin-bottom:12px">📬 Receiving Messages</div>
+        <div style="font-size:15px;color:#8eaac5;line-height:1.75">
+          Receiving is <strong style="color:#dce8f5">always free</strong>. Once opted in, anyone can send you a message. Open your <strong style="color:#dce8f5">Inbox</strong> tab to see messages. Tap any message to read it — it decrypts right in your browser using your wallet key, so nobody else can see the content.
+        </div>
+      </div>
+      <div style="height:1px;background:#2e4060;margin-bottom:20px"></div>
+
+      <div style="margin-bottom:20px">
+        <div style="font-size:16px;font-weight:800;color:#06b6d4;margin-bottom:12px">📤 Sending Messages</div>
+        <div style="font-size:15px;color:#8eaac5;line-height:1.75">
+          Go to the <strong style="color:#dce8f5">Compose</strong> tab. Enter the recipient's wallet address (0x...), a subject, and your message. Tap <strong style="color:#dce8f5">Send Encrypted Message</strong> — OrcaMail encrypts it so only the recipient can read it, then delivers it.<br><br>
+          You get <strong style="color:#dce8f5">5 free sends</strong> after connecting. After that, a subscription of <strong style="color:#dce8f5">$0.50/month in LCAI</strong> unlocks unlimited sending for 30 days.
+        </div>
+      </div>
+      <div style="height:1px;background:#2e4060;margin-bottom:20px"></div>
+
+      <div style="margin-bottom:20px">
+        <div style="font-size:16px;font-weight:800;color:#06b6d4;margin-bottom:12px">💳 Subscribing</div>
+        <div style="font-size:15px;color:#8eaac5;line-height:1.75">
+          After your 5 free sends, go to <strong style="color:#dce8f5">Settings</strong> and tap <strong style="color:#dce8f5">Subscribe</strong>. The app calculates the current LCAI price automatically so you always pay exactly ~$0.50 USD. Approve the transaction in your wallet — subscription is active instantly once confirmed.
+        </div>
+      </div>
+      <div style="height:1px;background:#2e4060;margin-bottom:20px"></div>
+
+      <div style="background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.2);border-radius:12px;padding:16px 18px">
+        <div style="font-size:15px;font-weight:800;color:#6ee7b7;margin-bottom:6px">🔒 Your Privacy</div>
+        <div style="font-size:14px;color:#8eaac5;line-height:1.7">All messages are encrypted with <strong style="color:#dce8f5">ECIES</strong> (the same cryptography as Ethereum) before they leave your device. The server stores only encrypted data — it cannot read your messages. Your wallet address is needed to route delivery, but message content is private.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="closeModal('modal-help')">Got it!</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+<script>
+'use strict';
+
+// ── Config ────────────────────────────────────────────────────────────────
+const API_BASE = '/api';
+const ORCAMAIL_CONTRACT = '0x5Fd3918Bb85685A006287eEa34988026f0eC9989';
+const LCAI_RPC = 'https://rpc.mainnet.lightchain.ai';
+const LCAI_CHAIN_ID = 9200;
+const FREE_SENDS = 5;
+const SUB_USD = 0.50;
+
+// ── State ─────────────────────────────────────────────────────────────────
+const S = {
+  addr: null,
+  provider: null,
+  signer: null,
+  optedIn: false,
+  freeSendsLeft: FREE_SENDS,
+  isPaid: false,
+  messages: [],
+  currentMsgId: null,
+  replyTo: null,
+  _signingKey: null  // cached after first sign — avoids asking wallet every message open
+};
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+const el = id => document.getElementById(id);
+function toast(msg, isError=false, ms=3000){
+  const t=el('toast');t.textContent=msg;t.className='show'+(isError?' error':'');
+  clearTimeout(toast._t);toast._t=setTimeout(()=>{t.className='';},ms);
+}
+function openModal(id){el(id).style.display='flex';}
+function closeModal(id){el(id).style.display='none';}
+function overlayClose(e,id){if(e.target===e.currentTarget)closeModal(id);}
+function fmtAddr(a){return a?a.slice(0,6)+'...'+a.slice(-4):'';}
+function fmtTime(ts){
+  const d=new Date(ts*1000);
+  const now=new Date();
+  if(d.toDateString()===now.toDateString()) return d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  return d.toLocaleDateString([],{month:'short',day:'numeric'})+' '+d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+}
+
+async function apiGet(path){
+  const r=await fetch(API_BASE+path);
+  if(!r.ok)throw new Error('API error '+r.status);
+  return r.json();
+}
+async function apiPost(path,body){
+  const r=await fetch(API_BASE+path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const j=await r.json();
+  if(!r.ok)throw new Error(j.error||'API error '+r.status);
+  return j;
+}
+
+// ── Wallet ────────────────────────────────────────────────────────────────
+async function connectWallet(){
+  const btn=el('hero-connect-btn'),btn2=el('nav-connect-btn');
+  if(btn){btn.textContent='Connecting...';}
+  try{
+    if(!window.ethereum) throw new Error('No wallet found. Please install MetaMask or Trust Wallet.');
+    const prov=new ethers.BrowserProvider(window.ethereum);
+    await prov.send('eth_requestAccounts',[]);
+    const sig=await prov.getSigner();
+    S.addr=await sig.getAddress();
+    S.provider=prov;S.signer=sig;
+    if(btn){btn.innerHTML='🐋 Connect Wallet — It\'s Free';}
+    afterConnect();
+  } catch(e){
+    if(btn){btn.innerHTML='🐋 Connect Wallet — It\'s Free';}
+    toast(e.message||'Connection failed',true);
+  }
+}
+
+function startAsGuest(){
+  el('landing').style.display='none';
+  el('app').style.display='flex';
+  showTab('inbox');
+  el('compose-guest-warn').style.display='';
+  el('compose-form-wrap').style.display='none';
+  renderInboxEmpty('Connect a wallet to see your messages.');
+}
+
+function afterConnect(){
+  el('landing').style.display='none';
+  el('app').style.display='flex';
+  el('btn-disconnect').style.display='';
+  el('nav-wallet-addr').textContent=fmtAddr(S.addr);
+  el('settings-wallet').textContent=S.addr;
+  showTab('inbox');
+  loadStatus();
+  loadInbox();
+}
+
+function goLanding(){
+  if(S.addr){showTab('inbox');return;}
+  el('app').style.display='none';
+  el('landing').style.display='flex';
+}
+
+function disconnectWallet(){
+  S.addr=null;S.provider=null;S.signer=null;S.messages=[];S._signingKey=null;
+  el('app').style.display='none';
+  el('landing').style.display='flex';
+}
+
+// Auto-reconnect if already connected
+window.addEventListener('load',async()=>{
+  if(!window.ethereum)return;
+  try{
+    const prov=new ethers.BrowserProvider(window.ethereum);
+    const accounts=await prov.listAccounts();
+    if(accounts.length>0){
+      S.provider=prov;
+      S.signer=await prov.getSigner();
+      S.addr=await S.signer.getAddress();
+      afterConnect();
+    }
+  }catch(e){}
+});
+
+// ── Status / Opt-In / Payment ─────────────────────────────────────────────
+async function loadStatus(){
+  if(!S.addr)return;
+  try{
+    const d=await apiGet('/optin/status?address='+S.addr);
+    S.optedIn=d.opted_in||false;
+    S.freeSendsLeft=d.free_sends_remaining??FREE_SENDS;
+    S.isPaid=d.is_subscribed||false;
+
+    // Nav badge
+    const badge=el('nav-payment-badge');
+    if(S.isPaid){badge.innerHTML='<span class="paid-badge">PRO</span>';}
+    else if(S.freeSendsLeft>0){badge.innerHTML='<span class="free-badge">'+S.freeSendsLeft+' free</span>';}
+    else{badge.innerHTML='<span class="free-badge" style="background:#fee2e2;color:#991b1b">0 sends</span>';}
+
+    // Opt-in banner
+    el('optin-banner').style.display=S.optedIn?'none':'';
+
+    // Compose sends left
+    if(S.isPaid){
+      el('compose-sends-left').textContent='✅ Unlimited sending — subscribed';
+    } else {
+      el('compose-sends-left').textContent=S.freeSendsLeft+' free send'+(S.freeSendsLeft!==1?'s':'')+' remaining';
+    }
+
+    // Settings
+    el('settings-optin-status').textContent=S.optedIn?'✅ Opted in — you can receive messages':'❌ Not opted in — others cannot send you messages';
+    el('btn-optin-toggle').style.display=S.optedIn?'none':'';
+    el('btn-optout-toggle').style.display=S.optedIn?'':'none';
+    el('settings-sub-status').textContent=S.isPaid?'✅ Active subscription':'Free tier — '+S.freeSendsLeft+' sends left';
+    el('btn-subscribe').style.display=S.isPaid?'none':'';
+    el('settings-free-sends').textContent=S.isPaid?'Unlimited (subscribed)':S.freeSendsLeft+' remaining';
+
+  } catch(e){console.warn('loadStatus failed',e);}
+}
+
+function doOptIn(){
+  openModal('modal-optin');
+}
+
+async function confirmOptIn(){
+  if(!S.signer){toast('Connect wallet first',true);return;}
+  closeModal('modal-optin');
+  try{
+    // Derive public key from wallet signature — cached so wallet only asked once
+    const signingKey=await getMySigningKey();
+    const pubkey=signingKey.publicKey; // 0x04... uncompressed
+
+    await apiPost('/optin',{address:S.addr,pubkey});
+    S.optedIn=true;
+    toast('✅ Opted in! Others can now send you messages.');
+    loadStatus();
+    loadInbox();
+  } catch(e){
+    toast(e.message||'Opt-in failed',true);
+  }
+}
+
+function confirmOptOut(){
+  openModal('modal-optout');
+}
+
+async function doOptOut(){
+  if(!S.signer){toast('Connect wallet first',true);return;}
+  closeModal('modal-optout');
+  try{
+    await apiPost('/optout',{address:S.addr});
+    S.optedIn=false;
+    S._signingKey=null; // clear cached key
+    toast('You have opted out. New senders can no longer reach you.');
+    loadStatus();
+  }catch(e){
+    toast(e.message||'Opt-out failed',true);
+  }
+}
+
+async function paySubscription(){
+  if(!S.signer){toast('Connect wallet first',true);return;}
+  try{
+    // Fetch live LCAI price for $0.50
+    let lcaiPrice=0.0001;
+    try{
+      const pg=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=lightchain-ai&vs_currencies=usd');
+      const pj=await pg.json();
+      lcaiPrice=pj['lightchain-ai']?.usd||0.0001;
+    }catch(e){
+      try{
+        const ds=await fetch('https://api.dexscreener.com/latest/dex/tokens/0x8E1De5F57e0F4DACE0bc32fEe4a9FbCe7DcF7ad1');
+        const dj=await ds.json();
+        lcaiPrice=parseFloat(dj.pairs?.[0]?.priceUsd||'0.0001');
+      }catch(e2){}
+    }
+    const lcaiNeeded=Math.ceil((SUB_USD/lcaiPrice)*1.02); // 2% buffer
+    el('pay-lcai-amount').textContent=lcaiNeeded.toLocaleString()+' LCAI';
+
+    // Switch to Lightchain network
+    try{
+      await S.provider.send('wallet_switchEthereumChain',[{chainId:'0x'+LCAI_CHAIN_ID.toString(16)}]);
+    }catch(e){
+      if(e.code===4902){
+        await S.provider.send('wallet_addEthereumChain',[{
+          chainId:'0x'+LCAI_CHAIN_ID.toString(16),
+          chainName:'Lightchain AI Mainnet',
+          nativeCurrency:{name:'LCAI',symbol:'LCAI',decimals:18},
+          rpcUrls:['https://rpc.mainnet.lightchain.ai'],
+          blockExplorerUrls:['https://mainnet.lightscan.app']
+        }]);
+      }
+    }
+
+    // Call contract purchaseAccess()
+    const iface=new ethers.Interface(['function purchaseAccess() payable','function accessExpiry(address) view returns (uint256)']);
+    const contract=new ethers.Contract(ORCAMAIL_CONTRACT,iface,S.signer);
+    const amountWei=ethers.parseEther(lcaiNeeded.toString());
+    const tx=await contract.purchaseAccess({value:amountWei});
+    toast('⏳ Transaction sent, waiting for confirmation...',false,10000);
+    await tx.wait();
+    toast('✅ Subscribed! Unlimited sending for 30 days.');
+    closeModal('modal-payment');
+    loadStatus();
+  }catch(e){
+    toast(e.reason||e.message||'Payment failed',true);
+  }
+}
+
+// ── Inbox ─────────────────────────────────────────────────────────────────
+async function loadInbox(forceRefresh=false){
+  if(!S.addr){renderInboxEmpty('Connect a wallet to view your inbox.');return;}
+  el('inbox-content').innerHTML='<div class="loading-state"><div class="spinner"></div><p>Loading messages...</p></div>';
+  try{
+    const d=await apiGet('/messages?address='+S.addr);
+    S.messages=d.messages||[];
+    renderInbox();
+  }catch(e){
+    el('inbox-content').innerHTML='<div class="empty-state"><div class="empty-state-icon">⚠️</div><h3>Could not load inbox</h3><p>'+e.message+'</p><button class="btn btn-primary btn-sm" onclick="loadInbox(true)">Try Again</button></div>';
+  }
+}
+
+function renderInbox(){
+  const c=el('inbox-content');
+  if(!S.messages.length){
+    renderInboxEmpty(S.optedIn?'Your inbox is empty. Share your wallet address to receive messages.':'Opt in above to start receiving messages.');
+    return;
+  }
+  c.innerHTML=S.messages.map(m=>`
+    <div class="message-item${m.read?'':' unread'}" onclick="openMessage('${m.id}')">
+      ${!m.read?'<div class="message-unread-dot"></div>':''}
+      <div class="message-item-header">
+        <span class="message-from">${fmtAddr(m.from)}</span>
+        <span class="message-time">${fmtTime(m.timestamp)}</span>
+      </div>
+      <div class="message-subject">${esc(m.subject||'(no subject)')}</div>
+      <div class="message-preview" style="color:var(--text-dim);font-style:italic">🔒 Encrypted — tap to read</div>
+    </div>
+  `).join('');
+}
+
+function renderInboxEmpty(msg){
+  el('inbox-content').innerHTML=`<div class="empty-state"><div class="empty-state-icon">📭</div><h3>No messages yet</h3><p>${msg}</p></div>`;
+}
+
+async function openMessage(msgId){
+  const msg=S.messages.find(m=>m.id===msgId);
+  if(!msg)return;
+  S.currentMsgId=msgId;
+
+  el('modal-msg-subject').textContent=msg.subject||'(no subject)';
+  el('modal-msg-from').textContent=msg.from;
+  el('modal-msg-time').textContent=fmtTime(msg.timestamp);
+  el('modal-msg-body').textContent='🔓 Decrypting...';
+  openModal('modal-message');
+
+  try{
+    // Decrypt the message using wallet signature
+    const body=await decryptMessage(msg.encrypted_body);
+    el('modal-msg-body').textContent=body;
+    // Mark as read
+    if(!msg.read){
+      msg.read=true;
+      renderInbox();
+      apiPost('/mark-read',{address:S.addr,messageId:msgId}).catch(()=>{});
+    }
+  }catch(e){
+    console.error('Decrypt error:',e);
+    el('modal-msg-body').innerHTML='<div style="color:#f87171;line-height:1.7">❌ <strong>Could not decrypt this message.</strong><br><br>This usually means the message was sent before the current version of OrcaMail was deployed. It cannot be recovered.<br><br><em style="color:var(--text-dim);font-size:13px">Tap 🗑 Delete below to remove it, then ask the sender to resend.</em></div>';
+  }
+}
+
+async function testEncryption(){
+  const btn=el('btn-test-crypto');
+  const res=el('test-crypto-result');
+  btn.disabled=true;btn.textContent='⏳ Testing...';
+  res.style.display='none';
+  try{
+    if(!S.signer)throw new Error('Connect your wallet first');
+    const signingKey=await getMySigningKey();
+    const myPub=signingKey.publicKey;
+    const testPlain='OrcaMail v2 encrypt test ✓';
+    const encrypted=await encryptMessage(testPlain,myPub);
+    const decrypted=await decryptMessage(encrypted);
+    if(decrypted!==testPlain)throw new Error('Decrypted text did not match');
+    res.innerHTML='<span style="color:#10b981">✅ Encryption working! Fresh messages will decrypt correctly.</span>';
+  }catch(e){
+    res.innerHTML='<span style="color:#f87171">❌ Test failed: '+( e?.message||String(e))+'</span>';
+  }finally{
+    btn.disabled=false;btn.textContent='🔑 Test Encryption';
+    res.style.display='';
+  }
+}
+
+async function getMySigningKey(){
+  // Cached after first unlock — wallet only asked once per session
+  if(S._signingKey)return S._signingKey;
+  if(!S.signer)throw new Error('No wallet connected');
+  const sig=await S.signer.signMessage('OrcaMail key registration v2');
+  const sigBytes=ethers.getBytes(sig);
+  const sv=sigBytes.slice(32,64);
+  S._signingKey=new ethers.SigningKey(ethers.hexlify(sv));
+  return S._signingKey;
+}
+
+async function decryptMessage(encryptedHex){
+  if(!S.signer)throw new Error('No wallet');
+  const signingKey=await getMySigningKey();
+
+  // Parse ECIES ciphertext: ephPubKey(65) + iv(12) + ciphertext+tag
+  // WebCrypto AES-GCM appends the 16-byte auth tag to the END of ciphertext
+  const buf=ethers.getBytes(encryptedHex);
+  const ephPub=buf.slice(0,65);
+  const iv=buf.slice(65,77);
+  const ctWithTag=buf.slice(77); // rest is ciphertext+tag together
+
+  // ECDH shared secret (ethers.hexlify works in browser; Buffer is Node-only)
+  const shared=signingKey.computeSharedSecret(ethers.hexlify(ephPub));
+  const sharedBytes=ethers.getBytes(shared).slice(1); // strip point prefix
+
+  // Derive AES key via SHA-256
+  const keyMaterial=await crypto.subtle.digest('SHA-256',sharedBytes);
+  const aesKey=await crypto.subtle.importKey('raw',keyMaterial,'AES-GCM',false,['decrypt']);
+
+  // AES-GCM decrypt — WebCrypto expects ciphertext+tag together as data
+  const plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:iv},aesKey,ctWithTag);
+  return new TextDecoder().decode(plain);
+}
+
+function replyToMessage(){
+  const msg=S.messages.find(m=>m.id===S.currentMsgId);
+  if(!msg)return;
+  closeModal('modal-message');
+  showTab('compose');
+  el('compose-to').value=msg.from;
+  el('compose-subject').value=(msg.subject||'').startsWith('Re: ')?msg.subject:'Re: '+(msg.subject||'');
+  el('compose-body').focus();
+}
+
+async function deleteCurrentMessage(){
+  if(!S.currentMsgId||!S.addr)return;
+  try{
+    await apiPost('/delete',{address:S.addr,messageId:S.currentMsgId});
+    S.messages=S.messages.filter(m=>m.id!==S.currentMsgId);
+    closeModal('modal-message');
+    renderInbox();
+    toast('Message deleted');
+  }catch(e){toast('Delete failed: '+e.message,true);}
+}
+
+// ── Compose ───────────────────────────────────────────────────────────────
+function updateCharCount(){
+  const v=el('compose-body').value.length;
+  el('char-count').textContent=v;
+  el('char-count').style.color=v>2000?'#dc2626':'';
+}
+
+async function sendMessage(){
+  if(!S.addr||!S.signer){toast('Connect wallet first',true);return;}
+  const to=(el('compose-to').value||'').trim();
+  const subject=(el('compose-subject').value||'').trim();
+  const body=(el('compose-body').value||'').trim();
+
+  if(!to||!ethers.isAddress(to)){toast('Enter a valid wallet address',true);return;}
+  // self-send allowed for testing
+  if(!body){toast('Message cannot be empty',true);return;}
+  if(body.length>2000){toast('Message too long (max 2000 characters)',true);return;}
+
+  if(!S.isPaid&&S.freeSendsLeft<=0){
+    openModal('modal-payment');return;
+  }
+
+  const btn=document.querySelector('#tab-compose .btn-primary');
+  btn.textContent='⏳ Encrypting & sending...';btn.disabled=true;
+
+  try{
+    // Get recipient's pubkey from server
+    const pkData=await apiGet('/pubkey?address='+to);
+    if(!pkData.pubkey)throw new Error('Recipient has not opted in to OrcaMail yet. They need to connect their wallet and opt in first.');
+
+    // Encrypt message with recipient's pubkey
+    const encrypted=await encryptMessage(body,pkData.pubkey);
+
+    // Send to server
+    await apiPost('/send',{
+      from:S.addr,
+      to,
+      subject:subject||'(no subject)',
+      encrypted_body:encrypted,
+      preview:''  // never send plaintext preview — content is private
+    });
+
+    toast('✅ Message sent securely!');
+    el('compose-to').value='';
+    el('compose-subject').value='';
+    el('compose-body').value='';
+    updateCharCount();
+    if(!S.isPaid)S.freeSendsLeft=Math.max(0,S.freeSendsLeft-1);
+    loadStatus();
+  }catch(e){
+    toast(e.message||'Send failed',true);
+  }finally{
+    btn.textContent='📤 Send Encrypted Message';btn.disabled=false;
+  }
+}
+
+async function encryptMessage(plaintext,recipientPubHex){
+  // Generate ephemeral key pair (ethers v6: no createRandom on SigningKey)
+  const ephKey=new ethers.SigningKey(ethers.hexlify(ethers.randomBytes(32)));
+  const ephPub=ethers.getBytes(ephKey.publicKey); // 65 bytes uncompressed
+
+  // ECDH shared secret with recipient's pubkey
+  const shared=ephKey.computeSharedSecret(recipientPubHex);
+  const sharedBytes=ethers.getBytes(shared).slice(1);
+
+  // Derive AES-256 key via SHA-256
+  const keyMaterial=await crypto.subtle.digest('SHA-256',sharedBytes);
+  const aesKey=await crypto.subtle.importKey('raw',keyMaterial,'AES-GCM',false,['encrypt']);
+
+  // AES-GCM encrypt
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const enc=await crypto.subtle.encrypt({name:'AES-GCM',iv},aesKey,new TextEncoder().encode(plaintext));
+  const encBytes=new Uint8Array(enc); // ciphertext + 16-byte tag appended by WebCrypto
+
+  // Concatenate: ephPub(65) + iv(12) + encBytes(len+16)
+  const result=new Uint8Array(65+12+encBytes.length);
+  result.set(ephPub,0);result.set(iv,65);result.set(encBytes,77);
+  return ethers.hexlify(result);
+}
+
+// ── Tabs ──────────────────────────────────────────────────────────────────
+function showTab(name){
+  ['inbox','compose','settings'].forEach(t=>{
+    el('tab-'+t).style.display=t===name?'':'none';
+    const btn=el('nav-btn-'+t);
+    if(btn)btn.className='bottom-nav-btn'+(t===name?' active':'');
+  });
+}
+
+// ── Escape HTML ───────────────────────────────────────────────────────────
+function esc(s){
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+</script>
+</body>
+</html>

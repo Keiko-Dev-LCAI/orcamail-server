@@ -1,0 +1,19 @@
+# Data files — never commit user data to git
+orcamail-messages.json
+orcamail-data.json
+orcamail-pubkeys.json
+orcamail-optins.json
+orcamail-sends.json
+MAINTENANCE_MODE
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.env
+.venv/
+venv/
+
+# OS
+.DS_Store
+Thumbs.db

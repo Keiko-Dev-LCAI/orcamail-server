@@ -1,0 +1,2 @@
+# OrcaMail server uses Python standard library only — no pip packages required.
+# Python 3.9+ is recommended.
