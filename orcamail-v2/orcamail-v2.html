@@ -300,6 +300,9 @@ html,body{min-height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI
       <div style="margin-top:16px;text-align:center">
         <button class="btn btn-danger btn-sm" onclick="disconnectWallet()">Disconnect Wallet</button>
       </div>
+      <div style="text-align:center;margin-top:18px">
+        <a href="#" onclick="openModal('modal-privacy');return false;" style="color:var(--text-dim);font-size:12px;text-decoration:none;">🔐 Privacy Policy</a>
+      </div>
     </div>
   </div>
 
@@ -463,6 +466,91 @@ html,body{min-height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI
     </div>
     <div class="modal-footer">
       <button class="btn btn-primary" onclick="closeModal('modal-help')">Got it!</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: PRIVACY POLICY -->
+<div id="modal-privacy" class="modal-overlay" style="display:none" onclick="overlayClose(event,'modal-privacy')">
+  <div class="modal" style="max-width:640px;max-height:92vh">
+    <div class="modal-header">
+      <h3>🔐 Privacy Policy</h3>
+      <button class="modal-close" onclick="closeModal('modal-privacy')">&#x2715;</button>
+    </div>
+    <div class="modal-body" style="gap:0;font-size:14px;color:#8eaac5;line-height:1.75;overflow-y:auto">
+
+      <p style="font-size:11px;color:var(--text-dim);margin-bottom:20px">Last updated: June 2025 &nbsp;·&nbsp; Contact: <a href="mailto:danmimna@gmail.com" style="color:var(--teal)">danmimna@gmail.com</a></p>
+
+      <div style="margin-bottom:18px">
+        <div style="font-size:15px;font-weight:700;color:#dce8f5;margin-bottom:8px">1. What OrcaMail Is</div>
+        <p>OrcaMail is a wallet-to-wallet encrypted messaging service built on the Lightchain blockchain. It is operated by an individual developer and provided as-is for the benefit of the Lightchain community.</p>
+      </div>
+
+      <div style="height:1px;background:var(--border);margin-bottom:18px"></div>
+      <div style="margin-bottom:18px">
+        <div style="font-size:15px;font-weight:700;color:#dce8f5;margin-bottom:8px">2. What Data We Collect</div>
+        <p style="margin-bottom:10px">When you use OrcaMail, the following data is stored on our server:</p>
+        <ul style="list-style:disc;padding-left:20px;display:flex;flex-direction:column;gap:6px">
+          <li><strong style="color:#dce8f5">Wallet addresses</strong> — your Ethereum-compatible public address, used to route messages to your inbox. Wallet addresses are pseudonymous and are not linked to your real-world identity by this service.</li>
+          <li><strong style="color:#dce8f5">Encrypted message blobs</strong> — the ciphertext of messages sent to you. These are encrypted client-side using ECIES (secp256k1 ECDH + AES-256-GCM) before they reach our server. We cannot decrypt or read your messages.</li>
+          <li><strong style="color:#dce8f5">Public keys</strong> — your secp256k1 public key, submitted when you opt in, so senders can encrypt messages to you. This key is derived from your wallet and is not a private key.</li>
+          <li><strong style="color:#dce8f5">Opt-in preferences</strong> — whether you have opted in to receive messages and any notification preferences you set.</li>
+          <li><strong style="color:#dce8f5">Send counts</strong> — a per-address counter tracking how many messages you have sent, used to enforce the free-send limit.</li>
+        </ul>
+        <p style="margin-top:10px">We do <strong style="color:#dce8f5">not</strong> collect your name, email address, IP address logs, or any off-chain identity information.</p>
+      </div>
+
+      <div style="height:1px;background:var(--border);margin-bottom:18px"></div>
+      <div style="margin-bottom:18px">
+        <div style="font-size:15px;font-weight:700;color:#dce8f5;margin-bottom:8px">3. End-to-End Encryption</div>
+        <p>All message content is encrypted <strong style="color:#dce8f5">on your device</strong> using ECIES encryption before being transmitted to our server. The server stores only the encrypted ciphertext and cannot read the contents of any message. Only the recipient, using their wallet's private key, can decrypt messages. The operator of this service has no ability to access message content.</p>
+      </div>
+
+      <div style="height:1px;background:var(--border);margin-bottom:18px"></div>
+      <div style="margin-bottom:18px">
+        <div style="font-size:15px;font-weight:700;color:#dce8f5;margin-bottom:8px">4. Where Data Is Stored</div>
+        <p>Data is stored on a third-party cloud infrastructure provider (currently Railway). It is <strong style="color:#dce8f5">not</strong> stored on any personal device belonging to the operator. The cloud provider may have its own data processing terms which apply to infrastructure-level operations.</p>
+      </div>
+
+      <div style="height:1px;background:var(--border);margin-bottom:18px"></div>
+      <div style="margin-bottom:18px">
+        <div style="font-size:15px;font-weight:700;color:#dce8f5;margin-bottom:8px">5. Data Retention &amp; Deletion</div>
+        <p>Messages remain stored until you delete them from your inbox. Opt-in and public key records remain until you opt out. Send count records are retained for service integrity. You can remove your data at any time by opting out in the Settings tab, which deletes your opt-in record and public key from our server.</p>
+      </div>
+
+      <div style="height:1px;background:var(--border);margin-bottom:18px"></div>
+      <div style="margin-bottom:18px">
+        <div style="font-size:15px;font-weight:700;color:#dce8f5;margin-bottom:8px">6. No Sale or Sharing of Data</div>
+        <p>We do not sell, rent, or share your data with third parties for marketing or advertising purposes. Data may be disclosed if required by law.</p>
+      </div>
+
+      <div style="height:1px;background:var(--border);margin-bottom:18px"></div>
+      <div style="margin-bottom:18px">
+        <div style="font-size:15px;font-weight:700;color:#dce8f5;margin-bottom:8px">7. No Warranty — Service Provided AS-IS</div>
+        <p>THIS SERVICE IS PROVIDED "AS IS" AND "AS AVAILABLE" WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, OR NON-INFRINGEMENT. THE OPERATOR DOES NOT WARRANT THAT THE SERVICE WILL BE UNINTERRUPTED, ERROR-FREE, OR FREE FROM SECURITY VULNERABILITIES.</p>
+      </div>
+
+      <div style="height:1px;background:var(--border);margin-bottom:18px"></div>
+      <div style="margin-bottom:18px">
+        <div style="font-size:15px;font-weight:700;color:#dce8f5;margin-bottom:8px">8. Limitation of Liability</div>
+        <p>TO THE FULLEST EXTENT PERMITTED BY LAW, THE OPERATOR SHALL NOT BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR PUNITIVE DAMAGES ARISING FROM YOUR USE OF OR INABILITY TO USE THIS SERVICE, INCLUDING BUT NOT LIMITED TO DATA LOSS, UNAUTHORIZED ACCESS TO DATA, SERVICE INTERRUPTION, OR ANY BREACH OF SECURITY. YOUR USE OF ORCAMAIL IS ENTIRELY AT YOUR OWN RISK.</p>
+      </div>
+
+      <div style="height:1px;background:var(--border);margin-bottom:18px"></div>
+      <div style="margin-bottom:18px">
+        <div style="font-size:15px;font-weight:700;color:#dce8f5;margin-bottom:8px">9. Pseudonymity</div>
+        <p>OrcaMail does not require or collect real-world identity information. Wallet addresses are pseudonymous identifiers. We make no attempt to link wallet addresses to real identities. However, blockchain transactions are public by nature — on-chain activity related to the OrcaMail contract is visible on the Lightchain network.</p>
+      </div>
+
+      <div style="height:1px;background:var(--border);margin-bottom:18px"></div>
+      <div style="margin-bottom:4px">
+        <div style="font-size:15px;font-weight:700;color:#dce8f5;margin-bottom:8px">10. Contact</div>
+        <p>Questions about this Privacy Policy? Email <a href="mailto:danmimna@gmail.com" style="color:var(--teal)">danmimna@gmail.com</a>.</p>
+      </div>
+
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-primary" onclick="closeModal('modal-privacy')">Close</button>
     </div>
   </div>
 </div>
