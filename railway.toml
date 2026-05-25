@@ -8,4 +8,4 @@ restartPolicyMaxRetries = 5
 
 [environments.production.deploy]
 healthcheckPath = "/api/health"
-healthcheckTimeout = 30
+healthcheckTimeout = 120
