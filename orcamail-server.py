@@ -1088,6 +1088,7 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
 # ════════════════════════════════════════════════════════════════════════════
 
 def main():
+    os.makedirs(DATA_DIR, exist_ok=True)
     for fpath in (DATA_FILE, STATS_FILE, PUBKEYS_FILE, OPTINS_FILE):
         if not os.path.exists(fpath):
             with open(fpath, "w") as f:
