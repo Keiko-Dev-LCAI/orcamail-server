@@ -1,2 +1,8 @@
-# OrcaMail server uses Python standard library only — no pip packages required.
-# Python 3.9+ is recommended.
+# OrcaMail server dependencies
+# web3 / eth-account / requests / websocket-client / cryptography are used by
+# the /api/aivm proxy only.  Core OrcaMail routes use Python stdlib only.
+web3
+eth-account
+requests
+websocket-client
+cryptography
