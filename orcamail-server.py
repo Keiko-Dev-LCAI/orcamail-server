@@ -440,7 +440,7 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
         self.end_headers()
 
     # ── GET routing ──────────────────────────────────────────────────────────
@@ -453,6 +453,11 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
         # ── Frontend ──────────────────────────────────────────────
         if path == "" or path == "/":
             self._serve_frontend()
+            return
+
+        # ── GET /api/aivm/* — CORS proxy for OrcaFiles AI ────────────
+        if path.startswith("/api/aivm/"):
+            self._handle_aivm_proxy("GET", path)
             return
 
         # ── GET /api/health ───────────────────────────────────────
@@ -520,6 +525,11 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
         parsed = urlparse(self.path)
         path   = parsed.path.rstrip("/")
 
+        # ── POST /api/aivm/* — CORS proxy for OrcaFiles AI ───────────
+        if path.startswith("/api/aivm/"):
+            self._handle_aivm_proxy("POST", path)
+            return
+
         # ── POST /api/send ────────────────────────────────────────
         if path == "/api/send":
             self._handle_send()
@@ -571,6 +581,51 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
     # ════════════════════════════════════════════════════════════════════════
     # HANDLERS
     # ════════════════════════════════════════════════════════════════════════
+
+    # ── AIVM CORS proxy (for OrcaFiles GitHub Pages) ─────────────────────────
+    # Routes /api/aivm/<rest> → https://chat-api.mainnet.lightchain.ai/<rest>
+    # Adds CORS headers so browser requests from orcafiles.ai work.
+
+    AIVM_UPSTREAM = "https://chat-api.mainnet.lightchain.ai"
+
+    def _handle_aivm_proxy(self, method, path):
+        # Strip our prefix to get the upstream path
+        upstream_path = path[len("/api/aivm"):]  # e.g. /api/models, /api/auth/challenge, etc.
+        qs = urlparse(self.path).query
+        upstream_url = self.AIVM_UPSTREAM + upstream_path + ("?" + qs if qs else "")
+
+        # Forward Authorization header if present
+        auth = self.headers.get("Authorization", "")
+        fwd_headers = {"Content-Type": "application/json", "Accept": "application/json"}
+        if auth:
+            fwd_headers["Authorization"] = auth
+
+        body = None
+        if method == "POST":
+            length = int(self.headers.get("Content-Length", 0))
+            body = self.rfile.read(length) if length else b""
+
+        try:
+            req = urllib.request.Request(upstream_url, data=body, headers=fwd_headers, method=method)
+            with urllib.request.urlopen(req, timeout=60) as resp:
+                resp_body = resp.read()
+                status = resp.status
+                ct = resp.headers.get("Content-Type", "application/json")
+        except urllib.error.HTTPError as e:
+            resp_body = e.read()
+            status = e.code
+            ct = "application/json"
+        except Exception as e:
+            self._send_json({"error": str(e)}, 502)
+            return
+
+        self.send_response(status)
+        self.send_header("Content-Type", ct)
+        self.send_header("Content-Length", len(resp_body))
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        self.end_headers()
+        self.wfile.write(resp_body)
 
     # ── Serve static files ───────────────────────────────────────────────────
 
