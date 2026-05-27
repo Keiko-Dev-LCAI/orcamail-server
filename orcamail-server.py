@@ -944,11 +944,6 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
             self._serve_static("orca.gif", "image/gif")
             return
 
-        # ── GET /api/aivm/* — transparent proxy to Lightchain chat API ───
-        if path.startswith("/api/aivm/"):
-            self._handle_aivm_proxy()
-            return
-
         self._send_error("Not found", 404)
 
     # ── POST routing ─────────────────────────────────────────────────────────
@@ -1008,14 +1003,9 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
             self._handle_mark_read(message_id)
             return
 
-        # ── POST /api/aivm — server-side AIVM inference ──────────
+        # ── POST /api/aivm — server-side AIVM inference (OrcaMint format) ─
         if path == "/api/aivm":
             self._handle_aivm()
-            return
-
-        # ── POST /api/aivm/* — transparent proxy to Lightchain chat API ─
-        if path.startswith("/api/aivm/"):
-            self._handle_aivm_proxy()
             return
 
         self._send_error("Not found", 404)
@@ -1609,53 +1599,8 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
             print(f"[aivm] error: {e}")
             self._send_error(f"AIVM inference failed: {e}", 503)
 
-    # ── /api/aivm/* — transparent CORS proxy to Lightchain chat API (OrcaFiles) ─
 
-    def _handle_aivm_proxy(self):
-        """Forward /api/aivm/{rest} → https://chat-api.mainnet.lightchain.ai/{rest}"""
-        parsed   = urlparse(self.path)
-        sub_path = parsed.path[len("/api/aivm"):]   # e.g. /api/auth/challenge
-        query    = ("?" + parsed.query) if parsed.query else ""
-        target   = AIVM_GATEWAY + sub_path + query
-
-        # Read request body
-        length = int(self.headers.get("Content-Length", 0))
-        body_bytes = self.rfile.read(length) if length > 0 else None
-
-        # Forward request to upstream
-        req = urllib.request.Request(target)
-        # Copy relevant headers
-        for hdr in ("Authorization", "Content-Type", "Accept"):
-            val = self.headers.get(hdr)
-            if val:
-                req.add_header(hdr, val)
-        req.method = self.command
-        if body_bytes:
-            req.data = body_bytes
-
-        try:
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                resp_body = resp.read()
-                self.send_response(resp.status)
-                ct = resp.headers.get("Content-Type", "application/json")
-                self.send_header("Content-Type", ct)
-                self.send_header("Content-Length", len(resp_body))
-                self.send_header("Access-Control-Allow-Origin", "*")
-                self.end_headers()
-                self.wfile.write(resp_body)
-        except urllib.error.HTTPError as e:
-            resp_body = e.read()
-            self.send_response(e.code)
-            self.send_header("Content-Type", "application/json")
-            self.send_header("Content-Length", len(resp_body))
-            self.send_header("Access-Control-Allow-Origin", "*")
-            self.end_headers()
-            self.wfile.write(resp_body)
-        except Exception as e:
-            self._send_error(f"Proxy error: {e}", 502)
-
-
-# ════════════════════════════════════════════════════════════════════════════
+# ════════════════��═════════════════════════════════════════════════���═════════
 # MAIN
 # ════════════════════════════════════════════════════════════════════════════
 
