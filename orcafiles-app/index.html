@@ -1,0 +1,2856 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OrcaFiles — Smart File Organizer</title>
+<style>
+:root {
+  --bg: #0a0f1a;
+  --surface: #0f1828;
+  --surface2: #13203a;
+  --card: #111e33;
+  --border: rgba(255,255,255,0.08);
+  --cyan: #00d4ff;
+  --cyan-dim: rgba(0,212,255,0.12);
+  --green: #00e676;
+  --yellow: #ffaa00;
+  --red: #ff4444;
+  --muted: #8fa8c0;
+  --text: #e0eaf5;
+  --sidebar-w: 240px;
+}
+*,*::before,*::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; font-size: 15px; }
+body { background: var(--bg); color: var(--text); min-height: 100vh; overflow-x: hidden; }
+
+/* ── WIZARD ─────────────────────────────────────────────────────── */
+#wizard {
+  position: fixed; inset: 0; background: var(--bg); z-index: 1000;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  padding: 24px;
+}
+.wizard-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 20px;
+  padding: 40px 36px; max-width: 560px; width: 100%; box-shadow: 0 8px 48px rgba(0,0,0,0.6);
+}
+.wizard-logo { text-align: center; margin-bottom: 8px; }
+.wizard-logo img { width: 80px; height: 80px; object-fit: cover; border-radius: 50%; border: 2px solid var(--accent); }
+.wizard-title { font-size: 26px; font-weight: 800; color: var(--cyan); text-align: center; margin-bottom: 6px; }
+.wizard-sub { font-size: 14px; color: var(--muted); text-align: center; margin-bottom: 28px; line-height: 1.6; }
+.wizard-step { display: none; }
+.wizard-step.active { display: block; }
+.wizard-q { font-size: 17px; font-weight: 700; color: var(--text); margin-bottom: 16px; line-height: 1.4; }
+.wizard-options { display: flex; flex-direction: column; gap: 10px; margin-bottom: 24px; }
+.wizard-opt {
+  display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+  background: var(--card); border: 2px solid var(--border); border-radius: 12px;
+  cursor: pointer; transition: all 0.15s; font-size: 14px; color: var(--text);
+}
+.wizard-opt:hover { border-color: rgba(0,212,255,0.4); background: var(--cyan-dim); }
+.wizard-opt.selected { border-color: var(--cyan); background: var(--cyan-dim); color: var(--cyan); }
+.wizard-opt input[type=checkbox], .wizard-opt input[type=radio] { accent-color: var(--cyan); width: 16px; height: 16px; flex-shrink: 0; }
+.wizard-opt-icon { font-size: 20px; flex-shrink: 0; }
+.wizard-opt-text { flex: 1; }
+.wizard-opt-title { font-weight: 600; font-size: 14px; }
+.wizard-opt-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.wizard-progress { display: flex; gap: 6px; justify-content: center; margin-bottom: 24px; }
+.wizard-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border); transition: all 0.2s; }
+.wizard-dot.active { background: var(--cyan); width: 24px; border-radius: 4px; }
+.wizard-dot.done { background: var(--green); }
+.wizard-actions { display: flex; gap: 10px; }
+.wizard-summary { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
+.wizard-summary-row {
+  display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+  background: var(--card); border: 1px solid var(--border); border-radius: 10px; font-size: 13px;
+}
+.wizard-summary-row .label { color: var(--muted); flex-shrink: 0; width: 130px; }
+.wizard-summary-row .val { color: var(--text); font-weight: 600; }
+.business-note {
+  background: rgba(0,212,255,0.06); border: 1px solid rgba(0,212,255,0.2);
+  border-radius: 10px; padding: 14px 16px; margin-bottom: 16px; font-size: 13px; color: var(--muted); line-height: 1.6;
+}
+.business-note strong { color: var(--cyan); }
+
+/* ── TOPBAR ─────────────────────────────────────────────────────── */
+#topbar {
+  position: fixed; top: 0; left: 0; right: 0; height: 58px; z-index: 100;
+  background: rgba(8,14,26,0.95); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 12px; padding: 0 20px;
+  backdrop-filter: blur(10px);
+}
+.topbar-logo { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+.topbar-logo-icon { display: inline-flex; align-items: center; }
+.topbar-logo-icon img { width: 30px; height: 30px; object-fit: cover; border-radius: 50%; border: 1px solid var(--accent); }
+.topbar-logo-name { font-size: 18px; font-weight: 800; color: var(--cyan); letter-spacing: -0.3px; }
+.topbar-search {
+  flex: 1; max-width: 400px; display: flex; align-items: center; gap: 8px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 0 12px;
+}
+.topbar-search input {
+  flex: 1; background: none; border: none; outline: none; color: var(--text);
+  font-size: 13px; padding: 8px 0; font-family: inherit;
+}
+.topbar-search input::placeholder { color: var(--muted); }
+.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+#wallet-badge {
+  display: flex; align-items: center; gap: 8px; background: var(--surface);
+  border: 1px solid var(--border); border-radius: 8px; padding: 6px 12px; font-size: 12px;
+}
+.wallet-addr { color: var(--muted); font-family: monospace; }
+.paid-badge { background: rgba(0,230,118,0.15); color: var(--green); border-radius: 999px; padding: 2px 8px; font-size: 11px; font-weight: 700; }
+.free-badge { background: rgba(255,170,0,0.15); color: var(--yellow); border-radius: 999px; padding: 2px 8px; font-size: 11px; font-weight: 700; cursor: pointer; }
+
+/* ── LAYOUT ─────────────────────────────────────────────────────── */
+#shell { display: flex; padding-top: 58px; min-height: 100vh; }
+
+/* ── SIDEBAR ────────────────────────────────────────────────────── */
+#sidebar {
+  width: var(--sidebar-w); flex-shrink: 0; background: var(--surface);
+  border-right: 1px solid var(--border); position: fixed; top: 58px;
+  bottom: 0; overflow-y: auto; padding: 16px 0; display: flex; flex-direction: column;
+}
+.nav-section-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--muted); padding: 12px 18px 6px;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 12px; padding: 11px 18px;
+  cursor: pointer; font-size: 14px; color: var(--muted);
+  border-left: 3px solid transparent; transition: all 0.15s; user-select: none;
+}
+.nav-item:hover { background: rgba(255,255,255,0.04); color: var(--text); }
+.nav-item.active { background: var(--cyan-dim); color: var(--cyan); border-left-color: var(--cyan); }
+.nav-item .nav-icon { font-size: 17px; width: 22px; text-align: center; flex-shrink: 0; }
+.nav-item .nav-label { font-weight: 500; }
+.sidebar-spacer { flex: 1; }
+.business-promo {
+  margin: 12px; padding: 14px; background: var(--card); border: 1px solid rgba(0,212,255,0.18);
+  border-radius: 12px; cursor: pointer; transition: border-color 0.15s;
+}
+.business-promo:hover { border-color: rgba(0,212,255,0.4); }
+.business-promo-title { font-size: 12px; font-weight: 700; color: var(--cyan); margin-bottom: 4px; }
+.business-promo-sub { font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+/* ── MAIN ───────────────────────────────────────────────────────── */
+#main {
+  margin-left: var(--sidebar-w); flex: 1; padding: 28px 32px;
+  min-width: 0; overflow-x: hidden;
+}
+.page { display: none; }
+.page.active { display: block; animation: fadeIn 0.2s ease; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+.page-header { margin-bottom: 24px; }
+.page-title { font-size: 24px; font-weight: 800; color: var(--text); margin-bottom: 4px; }
+.page-sub { font-size: 14px; color: var(--muted); }
+
+/* ── CARDS ──────────────────────────────────────────────────────── */
+.card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+  padding: 20px; margin-bottom: 16px;
+}
+.card-title { font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+
+/* ── BUTTONS ────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  padding: 10px 18px; border-radius: 8px; font-size: 13px; font-weight: 600;
+  cursor: pointer; border: none; transition: all 0.15s; font-family: inherit; text-decoration: none;
+}
+.btn:active { transform: scale(0.97); }
+.btn-primary { background: var(--cyan); color: #000; }
+.btn-primary:hover { background: #00bcd4; }
+.btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:hover { border-color: rgba(255,255,255,0.2); }
+.btn-ghost { background: transparent; color: var(--muted); border: 1px solid var(--border); }
+.btn-ghost:hover { color: var(--text); border-color: rgba(255,255,255,0.2); }
+.btn-danger { background: rgba(255,68,68,0.12); color: var(--red); border: 1px solid rgba(255,68,68,0.3); }
+.btn-danger:hover { background: rgba(255,68,68,0.2); }
+.btn-sm { padding: 7px 12px; font-size: 12px; border-radius: 6px; }
+.btn-lg { padding: 13px 24px; font-size: 15px; border-radius: 10px; }
+.btn-full { width: 100%; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none !important; }
+
+/* ── TOOLBAR ────────────────────────────────────────────────────── */
+.toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
+.toolbar-spacer { flex: 1; }
+.view-toggle { display: flex; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.view-btn { padding: 7px 12px; font-size: 14px; cursor: pointer; border: none; background: none; color: var(--muted); transition: all 0.15s; }
+.view-btn.active { background: var(--cyan-dim); color: var(--cyan); }
+.filter-select {
+  background: var(--surface); border: 1px solid var(--border); color: var(--text);
+  border-radius: 8px; padding: 7px 10px; font-size: 12px; font-family: inherit; outline: none; cursor: pointer;
+}
+.filter-select:focus { border-color: var(--cyan); }
+
+/* ── FILE GRID ──────────────────────────────────────────────────── */
+#file-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+#file-grid.list-view { grid-template-columns: 1fr; gap: 6px; }
+.file-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+  padding: 16px; cursor: pointer; transition: all 0.15s; position: relative;
+  display: flex; flex-direction: column; gap: 8px; user-select: none;
+}
+.file-card:hover { border-color: rgba(0,212,255,0.35); background: rgba(17,30,51,0.9); }
+.file-card.selected { border-color: var(--cyan); background: var(--cyan-dim); }
+#file-grid.list-view .file-card {
+  flex-direction: row; align-items: center; padding: 10px 14px; gap: 12px; border-radius: 8px;
+}
+.file-icon { font-size: 32px; text-align: center; flex-shrink: 0; }
+#file-grid.list-view .file-icon { font-size: 22px; }
+.file-name { font-size: 12px; font-weight: 600; color: var(--text); word-break: break-word; line-height: 1.3; }
+#file-grid.list-view .file-name { font-size: 13px; flex: 1; }
+.file-meta { font-size: 11px; color: var(--muted); }
+.file-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+.tag-pill {
+  background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.2);
+  color: var(--cyan); border-radius: 999px; padding: 2px 7px; font-size: 10px; font-weight: 600;
+}
+.protection-badge {
+  display: inline-flex; align-items: center; gap: 4px; border-radius: 999px;
+  padding: 2px 7px; font-size: 10px; font-weight: 700;
+}
+.prot-0 { background: rgba(107,128,153,0.15); color: var(--muted); border: 1px solid rgba(107,128,153,0.25); }
+.prot-1 { background: rgba(255,170,0,0.12); color: var(--yellow); border: 1px solid rgba(255,170,0,0.3); }
+.prot-2 { background: rgba(0,230,118,0.1); color: var(--green); border: 1px solid rgba(0,230,118,0.25); }
+.file-actions { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
+#file-grid.list-view .file-actions { margin-top: 0; }
+
+/* ── CONTEXT MENU ───────────────────────────────────────────────── */
+#ctx-menu {
+  position: fixed; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 10px; padding: 6px; min-width: 180px; z-index: 500;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5); display: none;
+}
+.ctx-item {
+  display: flex; align-items: center; gap: 10px; padding: 8px 12px;
+  border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text); transition: background 0.1s;
+}
+.ctx-item:hover { background: var(--cyan-dim); color: var(--cyan); }
+.ctx-item.danger:hover { background: rgba(255,68,68,0.1); color: var(--red); }
+.ctx-sep { height: 1px; background: var(--border); margin: 4px 0; }
+
+/* ── EMPTY STATE ────────────────────────────────────────────────── */
+.empty-state { text-align: center; padding: 60px 24px; }
+.empty-state-icon { font-size: 56px; margin-bottom: 14px; }
+.empty-state h3 { font-size: 18px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+.empty-state p { font-size: 14px; color: var(--muted); line-height: 1.6; margin-bottom: 20px; }
+
+/* ── MODALS ─────────────────────────────────────────────────────── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 600;
+  display: flex; align-items: center; justify-content: center; padding: 20px;
+}
+.modal {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  width: 100%; max-width: 480px; max-height: 90vh; display: flex; flex-direction: column; overflow: hidden;
+}
+.modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 20px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.modal-header h3 { font-size: 17px; font-weight: 700; color: var(--text); }
+.modal-close { background: none; border: none; color: var(--muted); font-size: 18px; cursor: pointer; padding: 4px; }
+.modal-body { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+.modal-footer { padding: 14px 20px; border-top: 1px solid var(--border); display: flex; gap: 10px; flex-shrink: 0; }
+.modal-footer .btn { flex: 1; }
+
+/* ── FORMS ──────────────────────────────────────────────────────── */
+.form-label { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 6px; display: block; }
+.form-input, .form-select, .form-textarea {
+  width: 100%; background: var(--card); border: 1px solid var(--border);
+  border-radius: 8px; padding: 10px 12px; color: var(--text); font-size: 14px;
+  font-family: inherit; outline: none; transition: border-color 0.15s;
+}
+.form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--cyan); }
+.form-input::placeholder { color: var(--muted); }
+.form-textarea { min-height: 80px; resize: vertical; }
+.form-group { display: flex; flex-direction: column; gap: 6px; }
+.toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.toggle-label { font-size: 13px; color: var(--text); }
+.toggle-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.toggle { position: relative; width: 40px; height: 22px; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.toggle-slider { position: absolute; inset: 0; background: var(--border); border-radius: 11px; cursor: pointer; transition: 0.2s; }
+.toggle-slider:before { content: ''; position: absolute; width: 16px; height: 16px; left: 3px; top: 3px; background: var(--muted); border-radius: 50%; transition: 0.2s; }
+.toggle input:checked + .toggle-slider { background: var(--cyan); }
+.toggle input:checked + .toggle-slider:before { transform: translateX(18px); background: #000; }
+
+/* ── INFO / WARN BOXES ──────────────────────────────────────────── */
+.info-box { background: var(--cyan-dim); border: 1px solid rgba(0,212,255,0.25); border-radius: 8px; padding: 12px 14px; font-size: 13px; color: var(--muted); line-height: 1.6; }
+.info-box strong { color: var(--cyan); }
+.warn-box { background: rgba(255,170,0,0.08); border: 1px solid rgba(255,170,0,0.25); border-radius: 8px; padding: 12px 14px; font-size: 13px; color: #cc8800; line-height: 1.6; }
+.warn-box strong { color: var(--yellow); }
+.success-box { background: rgba(0,230,118,0.07); border: 1px solid rgba(0,230,118,0.25); border-radius: 8px; padding: 12px 14px; font-size: 13px; color: #00b85e; line-height: 1.6; }
+
+/* ── LOADING SPINNER ────────────────────────────────────────────── */
+.spinner { width: 36px; height: 36px; border: 3px solid var(--border); border-top-color: var(--cyan); border-radius: 50%; animation: spin 0.7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loading-state { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 40px 24px; text-align: center; color: var(--muted); font-size: 13px; }
+
+/* ── TOAST ──────────────────────────────────────────────────────── */
+#toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(16px);
+  background: var(--surface2); color: var(--text); padding: 10px 20px; border-radius: 999px;
+  font-size: 13px; font-weight: 500; z-index: 9000; opacity: 0; transition: all 0.25s;
+  border: 1px solid var(--border); white-space: nowrap; max-width: 90vw; pointer-events: none;
+}
+#toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+#toast.ok { border-color: rgba(0,230,118,0.4); color: var(--green); }
+#toast.err { border-color: rgba(255,68,68,0.4); color: var(--red); }
+
+/* ── LOCAL BACKUP ───────────────────────────────────────────────── */
+.backup-hero {
+  background: linear-gradient(135deg, rgba(0,212,255,0.08), rgba(0,230,118,0.05));
+  border: 1px solid rgba(0,212,255,0.2); border-radius: 16px;
+  padding: 32px; text-align: center; margin-bottom: 20px;
+}
+.backup-hero-icon { font-size: 52px; margin-bottom: 12px; }
+.backup-hero-title { font-size: 20px; font-weight: 800; color: var(--text); margin-bottom: 8px; }
+.backup-hero-sub { font-size: 14px; color: var(--muted); line-height: 1.6; margin-bottom: 20px; }
+.backup-tip-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-top: 8px; }
+.backup-tip {
+  background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+  padding: 14px 12px; text-align: center; font-size: 12px; color: var(--muted); line-height: 1.5;
+}
+.backup-tip .tip-icon { font-size: 24px; display: block; margin-bottom: 6px; }
+.backup-tip strong { color: var(--text); display: block; margin-bottom: 4px; }
+#backup-status-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
+.backup-stat-row { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+.backup-stat-row:last-child { border-bottom: none; }
+.backup-stat-label { color: var(--muted); }
+.backup-stat-val { color: var(--text); font-weight: 600; }
+
+/* ── SETTINGS ───────────────────────────────────────────────────── */
+.settings-section { margin-bottom: 28px; }
+.settings-title { font-size: 13px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 12px; }
+.settings-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 18px; }
+
+/* ── COMPARISON TABLE ───────────────────────────────────────────── */
+.compare-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 12px; }
+.compare-table th { text-align: left; padding: 10px 12px; background: var(--surface2); color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--border); }
+.compare-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); color: var(--text); }
+.compare-table tr:last-child td { border-bottom: none; }
+.compare-table .yes { color: var(--green); font-weight: 700; }
+.compare-table .no { color: var(--muted); }
+.compare-table .feat { color: var(--text); }
+
+/* ── AI FAB + PANEL ─────────────────────────────────────────────── */
+.ai-fab {
+  position: fixed; bottom: 24px; right: 24px; height: 50px; padding: 0 20px 0 10px;
+  border-radius: 28px; background: linear-gradient(135deg, #0099cc, var(--cyan));
+  border: none; cursor: pointer; display: flex; align-items: center; gap: 10px;
+  box-shadow: 0 4px 24px rgba(0,212,255,0.45); transition: all 0.2s; z-index: 400; font-family: inherit;
+}
+.ai-fab:hover { transform: scale(1.04); box-shadow: 0 6px 32px rgba(0,212,255,0.6); }
+.ai-fab-text { font-size: 14px; font-weight: 800; color: #000; }
+.ai-panel {
+  position: fixed; bottom: 88px; right: 24px; width: 380px; height: 460px;
+  min-width: 280px; min-height: 300px; max-width: 680px; max-height: 84vh;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.5); z-index: 400; display: none; flex-direction: column;
+  overflow: hidden; resize: both;
+}
+.ai-panel.open { display: flex; }
+.ai-panel-header {
+  background: linear-gradient(135deg, var(--surface2), #1a0a3a);
+  padding: 18px 20px; display: flex; align-items: center;
+  gap: 10px; border-bottom: 1px solid var(--border); flex-shrink: 0; cursor: move; user-select: none;
+}
+.ai-panel-title { font-weight: 700; font-size: 1.2rem; color: var(--text); }
+.ai-panel-sub { font-size: 0.85rem; color: var(--muted); }
+.ai-panel-close { margin-left: auto; background: none; border: none; color: var(--muted); cursor: pointer; font-size: 20px; padding: 3px; }
+.ai-panel-close:hover { color: var(--text); }
+.ai-resize-handle { position: absolute; top: 0; left: 0; width: 28px; height: 28px; cursor: nw-resize; display: flex; align-items: center; justify-content: center; color: var(--muted); opacity: .45; border-radius: 16px 0 0 0; z-index: 5; user-select: none; }
+.ai-resize-handle:hover { opacity: 1; color: var(--cyan); }
+.ai-panel.resizing { user-select: none; }
+.ai-messages { padding: 16px; flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; overscroll-behavior: contain; }
+.ai-msg { padding: 11px 14px; border-radius: 12px; font-size: 0.95rem; line-height: 1.6; max-width: 88%; white-space: pre-wrap; word-break: break-word; }
+.ai-msg.bot { background: var(--surface2); border: 1px solid var(--border); align-self: flex-start; }
+.ai-msg.user { background: rgba(0,212,255,0.12); border: 1px solid rgba(0,212,255,0.2); align-self: flex-end; color: var(--cyan); }
+.ai-input-row { padding: 12px 14px; border-top: 1px solid var(--border); display: flex; gap: 8px; flex-shrink: 0; }
+.ai-input {
+  flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 13px; color: var(--text); font-size: 1rem; font-family: inherit; outline: none; resize: none; height: 44px;
+}
+.ai-input:focus { border-color: var(--cyan); }
+.ai-send { background: var(--cyan); border: none; color: #000; padding: 10px 16px; border-radius: 8px; cursor: pointer; font-weight: 700; font-size: 0.95rem; font-family: inherit; }
+.ai-send:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* ── PAYMENT MODAL EXTRAS ───────────────────────────────────────── */
+.pay-address {
+  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 12px; font-family: monospace; font-size: 12px; color: var(--cyan);
+  word-break: break-all; cursor: pointer;
+}
+.pay-address:hover { background: var(--surface2); }
+#lcai-price-display { font-size: 32px; font-weight: 900; color: var(--cyan); text-align: center; }
+#lcai-rate-display { font-size: 12px; color: var(--muted); text-align: center; margin-top: 4px; }
+
+/* ── TAG INPUT ──────────────────────────────────────────────────── */
+.tag-input-wrap {
+  display: flex; flex-wrap: wrap; gap: 6px; padding: 8px; background: var(--card);
+  border: 1px solid var(--border); border-radius: 8px; min-height: 42px; cursor: text;
+}
+.tag-input-wrap:focus-within { border-color: var(--cyan); }
+.tag-input-wrap .tag-pill { cursor: pointer; }
+.tag-real-input { flex: 1; min-width: 80px; background: none; border: none; outline: none; color: var(--text); font-size: 13px; font-family: inherit; }
+
+/* ── MOBILE ─────────────────────────────────────────────────────── */
+@media (max-width: 768px) {
+  #sidebar { display: none; }
+  #main { margin-left: 0; padding: 16px 14px 80px; }
+  .cloud-grid { grid-template-columns: 1fr; }
+  .ai-panel { width: calc(100vw - 24px); right: 12px; resize: none; }
+}
+
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+
+/* ── V1-STYLE SIDEBAR ENHANCEMENTS ────────────────────────────── */
+.nav-badge {
+  margin-left: auto; background: rgba(0,212,255,0.15); color: var(--cyan);
+  font-size: 10px; font-weight: 700; padding: 1px 6px; border-radius: 999px; min-width: 18px; text-align: center;
+}
+.nav-add-folder { opacity: 0.8; }
+.nav-add-folder:hover { opacity: 1; }
+.nav-biz { opacity: 0.6; }
+.nav-biz:hover { opacity: 0.9; }
+.nav-biz-badge {
+  margin-left: auto; font-size: 9px; background: rgba(124,58,237,0.2); color: #c4b5fd;
+  border: 1px solid rgba(124,58,237,0.3); border-radius: 4px; padding: 1px 5px;
+}
+/* ── TIER BADGES ─────────────────────────────────────────────────── */
+.paid-badge { display:inline-block; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:700; }
+.tier-home  { background:rgba(0,180,100,0.18); color:#4ade80; }
+.tier-pro   { background:linear-gradient(135deg,rgba(124,58,237,0.5),rgba(0,212,255,0.3)); color:#e0d4ff; border:1px solid rgba(167,139,250,0.4); }
+/* ── TIER PICKER (payment modal) ─────────────────────────────────── */
+.tier-picker { display:flex; gap:10px; margin-bottom:14px; }
+.tier-pick-card { flex:1; background:var(--card); border:2px solid var(--border); border-radius:10px; padding:14px 12px; cursor:pointer; transition:border-color .2s; display:flex; flex-direction:column; gap:4px; }
+.tier-pick-card:has(input:checked) { border-color:var(--cyan); background:rgba(0,212,255,0.05); }
+.tier-pick-card input { display:none; }
+.tier-pick-name { font-size:14px; font-weight:700; color:var(--text); }
+.tier-pick-price { font-size:22px; font-weight:900; color:var(--cyan); line-height:1; margin:4px 0; }
+.tier-pick-price span { font-size:12px; font-weight:400; color:var(--muted); }
+.tier-pick-features { list-style:none; padding:0; margin:6px 0 0; font-size:11px; color:#b0b8c8; line-height:1.9; }
+/* ── PLAN CARDS (settings) ───────────────────────────────────────── */
+.plan-cards-row { display:flex; gap:10px; flex-wrap:wrap; }
+.plan-card { flex:1; min-width:140px; background:var(--card); border:1px solid var(--border); border-radius:10px; padding:14px 12px; display:flex; flex-direction:column; gap:4px; }
+.plan-card-highlight { border-color:rgba(0,212,255,0.4); background:rgba(0,212,255,0.04); }
+.plan-card-pro { border-color:rgba(124,58,237,0.5); background:rgba(124,58,237,0.06); }
+.plan-card-name { font-size:13px; font-weight:700; color:var(--text); }
+.plan-card-price { font-size:26px; font-weight:900; color:var(--cyan); line-height:1.1; }
+.plan-card-features { list-style:none; padding:0; margin:8px 0 0; font-size:11px; color:#b0b8c8; line-height:2; }
+.plan-card-features .dim { color:#6a7385; }
+@media (max-width:640px) { .tier-picker { flex-direction:column; } .plan-cards-row { flex-direction:column; } }
+/* ── HELP MODAL ──────────────────────────────────────────────────── */
+.help-section { border-bottom:1px solid var(--border); padding:14px 0; }
+.help-section:last-child { border-bottom:none; }
+.help-q { font-size:14px; font-weight:700; color:var(--text); margin-bottom:6px; }
+.help-a { font-size:13px; color:#b0b8c8; line-height:1.6; }
+#sidebar-stats {
+  padding: 10px 12px 6px; font-size: 11px; color: var(--muted);
+  border-top: 1px solid var(--border); margin-top: 8px; line-height: 1.8;
+}
+
+/* ── V1-STYLE TOPBAR BUTTONS ───────────────────────────────────── */
+#topbar .topbar-search { flex: 1; max-width: 480px; display: flex; align-items: center; gap: 8px; }
+#topbar .topbar-right { gap: 8px; }
+
+/* ── V1-STYLE FILTER PILLS ─────────────────────────────────────── */
+.filter-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+.filter-pill {
+  background: var(--card); border: 1px solid var(--border); border-radius: 999px;
+  color: var(--muted); font-size: 12px; font-weight: 600; padding: 5px 14px; cursor: pointer;
+  transition: all 0.15s;
+}
+.filter-pill:hover { border-color: var(--cyan); color: var(--text); }
+.filter-pill.active { background: rgba(0,212,255,0.12); border-color: var(--cyan); color: var(--cyan); }
+.file-count-label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+/* ── V1-STYLE FILE CARDS ───────────────────────────────────────── */
+.file-icon-lg { font-size: 48px; display: block; text-align: center; margin-bottom: 8px; }
+.prot-badge-corner { position: absolute; top: 8px; right: 8px; }
+#file-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 12px; padding: 4px 2px; }
+.file-card {
+  position: relative; background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+  padding: 14px 12px 10px; cursor: pointer; transition: border-color 0.15s, box-shadow 0.15s;
+  display: flex; flex-direction: column; align-items: center; text-align: center; gap: 4px;
+  min-height: 140px;
+}
+.file-card:hover { border-color: rgba(0,212,255,0.4); box-shadow: 0 0 12px rgba(0,212,255,0.08); }
+.file-card.selected { border-color: var(--cyan); background: rgba(0,212,255,0.06); }
+.file-select-cb { position: absolute; top: 6px; left: 6px; width: 15px; height: 15px; cursor: pointer; accent-color: var(--cyan); z-index: 2; }
+.file-card { position: relative; }
+.file-card .file-name { font-size: 12px; font-weight: 600; color: var(--text); word-break: break-word; line-height: 1.3; max-width: 100%; }
+.file-card .file-meta { font-size: 10px; color: var(--muted); }
+.file-card .file-tags { display: flex; flex-wrap: wrap; gap: 3px; justify-content: center; margin-top: 2px; }
+.star-btn {
+  position: absolute; bottom: 7px; right: 8px; background: none; border: none;
+  font-size: 14px; color: var(--muted); cursor: pointer; padding: 0; line-height: 1;
+  transition: color 0.15s;
+}
+.star-btn:hover { color: #fbbf24; }
+.star-btn.starred { color: #fbbf24; }
+.file-card-list {
+  flex-direction: row; align-items: center; text-align: left; min-height: unset; padding: 10px 14px; gap: 12px;
+}
+.file-card-list .file-icon-lg { font-size: 28px; margin-bottom: 0; flex-shrink: 0; }
+.file-card-list .fc-info { flex: 1; min-width: 0; }
+.file-card-list .file-name { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.file-card-list .prot-badge-corner { position: static; }
+.file-card-list .star-btn { position: static; flex-shrink: 0; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!--  SETUP WIZARD                                                   -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div id="wizard">
+  <div class="wizard-card">
+    <div class="wizard-logo"><img src="orca-icon.png" alt="OrcaFiles"></div>
+    <h1 class="wizard-title">OrcaFiles</h1>
+    <p class="wizard-sub">Smart file organizer — let's set up your workspace in 30 seconds.</p>
+
+    <!-- Progress dots -->
+    <div class="wizard-progress">
+      <div class="wizard-dot active" id="wdot-0"></div>
+      <div class="wizard-dot" id="wdot-1"></div>
+      <div class="wizard-dot" id="wdot-2"></div>
+      <div class="wizard-dot" id="wdot-3"></div>
+      <div class="wizard-dot" id="wdot-4"></div>
+    </div>
+
+    <!-- Step 0: Welcome -->
+    <div class="wizard-step active" id="wstep-0">
+      <div class="wizard-q">Welcome to OrcaFiles ✨</div>
+      <p style="font-size:14px;color:var(--muted);line-height:1.7;margin-bottom:20px;">
+        OrcaFiles organizes, protects, and AI-tags your files — all running in your browser.
+        No accounts. No cloud required. Your files stay on your PC.
+      </p>
+      <div class="info-box" style="margin-bottom:20px;">
+        <strong>🔐 File System Access API</strong> — Uses Chrome/Edge's secure API to read your local folders.
+        We never upload your files without your permission.
+      </div>
+      <div class="wizard-actions">
+        <button class="btn btn-primary btn-full btn-lg" onclick="wizardNext()">Let's get started →</button>
+      </div>
+    </div>
+
+    <!-- Step 1: Personal or Business -->
+    <div class="wizard-step" id="wstep-1">
+      <div class="wizard-q">Is this for personal use or a team / business?</div>
+      <div class="wizard-options" id="wopts-use">
+        <label class="wizard-opt selected" data-val="personal">
+          <input type="radio" name="wuse" value="personal" checked onchange="wizardOptChange(this)">
+          <span class="wizard-opt-icon">🏠</span>
+          <span class="wizard-opt-text">
+            <div class="wizard-opt-title">Personal</div>
+            <div class="wizard-opt-sub">Just me — organize my own files</div>
+          </span>
+        </label>
+        <label class="wizard-opt" data-val="business">
+          <input type="radio" name="wuse" value="business" onchange="wizardOptChange(this)">
+          <span class="wizard-opt-icon">💼</span>
+          <span class="wizard-opt-text">
+            <div class="wizard-opt-title">Team / Business</div>
+            <div class="wizard-opt-sub">Multi-user access, shared folders, team messaging</div>
+          </span>
+        </label>
+      </div>
+      <div id="business-note" class="business-note" style="display:none;">
+        <strong>💼 OrcaFiles Business Server</strong> — For full multi-user features (Watch Folders, team messaging,
+        role-based access), download and run the Business Server on your own PC or VPS.
+        <br><br>
+        <button class="btn btn-secondary btn-sm" onclick="window.open('https://github.com/Keiko-Dev-LCAI/orcafiles-app/releases','_blank')">⬇️ Download Business Server</button>
+        <br><br>You can still continue here for personal use.
+      </div>
+      <div class="wizard-actions">
+        <button class="btn btn-ghost" onclick="wizardBack()">← Back</button>
+        <button class="btn btn-primary" style="flex:1" onclick="wizardNext()">Continue →</button>
+      </div>
+    </div>
+
+    <!-- Step 2: File types -->
+    <div class="wizard-step" id="wstep-2">
+      <div class="wizard-q">What kinds of files do you want to organize?</div>
+      <div class="wizard-options" id="wopts-types">
+        <label class="wizard-opt selected"><input type="checkbox" value="docs" checked onchange="wizardCheckChange(this)"><span class="wizard-opt-icon">📄</span><span class="wizard-opt-text"><div class="wizard-opt-title">Personal docs</div></span></label>
+        <label class="wizard-opt"><input type="checkbox" value="finance" onchange="wizardCheckChange(this)"><span class="wizard-opt-icon">💰</span><span class="wizard-opt-text"><div class="wizard-opt-title">Financial records</div></span></label>
+        <label class="wizard-opt"><input type="checkbox" value="photos" onchange="wizardCheckChange(this)"><span class="wizard-opt-icon">📷</span><span class="wizard-opt-text"><div class="wizard-opt-title">Photos &amp; media</div></span></label>
+        <label class="wizard-opt"><input type="checkbox" value="work" onchange="wizardCheckChange(this)"><span class="wizard-opt-icon">💼</span><span class="wizard-opt-text"><div class="wizard-opt-title">Work files</div></span></label>
+        <label class="wizard-opt"><input type="checkbox" value="medical" onchange="wizardCheckChange(this)"><span class="wizard-opt-icon">🏥</span><span class="wizard-opt-text"><div class="wizard-opt-title">Medical records</div></span></label>
+        <label class="wizard-opt"><input type="checkbox" value="other" onchange="wizardCheckChange(this)"><span class="wizard-opt-icon">📦</span><span class="wizard-opt-text"><div class="wizard-opt-title">Other</div></span></label>
+      </div>
+      <div class="wizard-actions">
+        <button class="btn btn-ghost" onclick="wizardBack()">← Back</button>
+        <button class="btn btn-primary" style="flex:1" onclick="wizardNext()">Continue →</button>
+      </div>
+    </div>
+
+    <!-- Step 3: Privacy -->
+    <div class="wizard-step" id="wstep-3">
+      <div class="wizard-q">How important is privacy for your files?</div>
+      <div class="wizard-options" id="wopts-privacy">
+        <label class="wizard-opt" data-val="organize">
+          <input type="radio" name="wprivacy" value="organize" onchange="wizardOptChange(this)">
+          <span class="wizard-opt-icon">🔵</span>
+          <span class="wizard-opt-text">
+            <div class="wizard-opt-title">Just organizing</div>
+            <div class="wizard-opt-sub">Catalog and tag files — no encryption needed</div>
+          </span>
+        </label>
+        <label class="wizard-opt selected" data-val="selective">
+          <input type="radio" name="wprivacy" value="selective" checked onchange="wizardOptChange(this)">
+          <span class="wizard-opt-icon">🟡</span>
+          <span class="wizard-opt-text">
+            <div class="wizard-opt-title">Encrypt sensitive files</div>
+            <div class="wizard-opt-sub">I'll choose which files get AES-256 encryption</div>
+          </span>
+        </label>
+        <label class="wizard-opt" data-val="all">
+          <input type="radio" name="wprivacy" value="all" onchange="wizardOptChange(this)">
+          <span class="wizard-opt-icon">🟢</span>
+          <span class="wizard-opt-text">
+            <div class="wizard-opt-title">Encrypt everything</div>
+            <div class="wizard-opt-sub">Maximum privacy — all files encrypted by default</div>
+          </span>
+        </label>
+      </div>
+      <div class="wizard-actions">
+        <button class="btn btn-ghost" onclick="wizardBack()">← Back</button>
+        <button class="btn btn-primary" style="flex:1" onclick="wizardNext()">Continue →</button>
+      </div>
+    </div>
+
+    <!-- Step 4: AI -->
+    <div class="wizard-step" id="wstep-4">
+      <div class="wizard-q">Do you want AI to help you organize, tag, and search?</div>
+      <div class="wizard-options" id="wopts-ai">
+        <label class="wizard-opt selected" data-val="yes">
+          <input type="radio" name="wai" value="yes" checked onchange="wizardOptChange(this)">
+          <span class="wizard-opt-icon">🤖</span>
+          <span class="wizard-opt-text">
+            <div class="wizard-opt-title">Yes — connect wallet</div>
+            <div class="wizard-opt-sub">~0.02 LCAI per AI call via Lightchain AIVM. 5 calls free.</div>
+          </span>
+        </label>
+        <label class="wizard-opt" data-val="no">
+          <input type="radio" name="wai" value="no" onchange="wizardOptChange(this)">
+          <span class="wizard-opt-icon">🚫</span>
+          <span class="wizard-opt-text">
+            <div class="wizard-opt-title">No thanks</div>
+            <div class="wizard-opt-sub">Manual tags and search only</div>
+          </span>
+        </label>
+      </div>
+      <div class="wizard-actions">
+        <button class="btn btn-ghost" onclick="wizardBack()">← Back</button>
+        <button class="btn btn-primary" style="flex:1" onclick="wizardNext()">See my setup →</button>
+      </div>
+    </div>
+
+    <!-- Step 5: Summary -->
+    <div class="wizard-step" id="wstep-5">
+      <div class="wizard-q">Here's your personalized setup 🎉</div>
+      <div class="wizard-summary" id="wizard-summary"></div>
+      <div class="info-box" style="margin-bottom:16px;">
+        <strong>📁 Suggested folders:</strong> <span id="wizard-folders"></span>
+      </div>
+      <div class="wizard-actions">
+        <button class="btn btn-ghost" onclick="wizardBack()">← Edit</button>
+        <button class="btn btn-primary btn-lg" style="flex:1" onclick="wizardFinish()">🚀 Let's go!</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!--  MAIN APP (hidden until wizard done)                            -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div id="app" style="display:none;">
+
+  <!-- TOP BAR -->
+  <header id="topbar">
+    <div class="topbar-logo">
+      <span class="topbar-logo-icon"><img src="orca-icon.png" alt="OrcaFiles"></span>
+      <span class="topbar-logo-name">OrcaFiles</span>
+    </div>
+    <div class="topbar-search">
+      <span style="font-size:14px;color:var(--muted);">🔍</span>
+      <input id="search-input" type="text" placeholder="Ask Keiko… find a file, or ask anything" autocomplete="off" oninput="onSearchInput()">
+      <button class="btn btn-sm btn-primary" onclick="onSearchInput()" style="padding:4px 12px;font-size:12px;">Ask</button>
+    </div>
+    <div class="topbar-right">
+      <button class="btn btn-sm btn-secondary" id="btn-new-folder-top" onclick="createVirtualFolder()" style="display:none;">📁 New Folder</button>
+      <button class="btn btn-sm btn-secondary" id="btn-scan-folder-top" onclick="openFolder()" style="display:none;">🔍 Scan Folder</button>
+      <button class="btn btn-sm btn-primary" id="btn-add-files-top" onclick="openFolder()">+ Add Files</button>
+      <div id="wallet-badge">
+        <span id="wallet-status-icon">🔌</span>
+        <span id="wallet-addr-display" class="wallet-addr">No wallet</span>
+        <span id="payment-badge-text"></span>
+      </div>
+      <button class="btn btn-sm" id="btn-wallet-action" onclick="walletAction()">Connect Wallet</button>
+    </div>
+  </header>
+
+  <div id="shell">
+    <!-- SIDEBAR -->
+    <nav id="sidebar">
+
+      <div class="nav-section-label">Quick Access</div>
+      <div class="nav-item active" data-view="all" onclick="setView2('all')">
+        <span class="nav-icon">📁</span><span class="nav-label">All Files</span><span class="nav-badge" id="badge-all"></span>
+      </div>
+      <div class="nav-item" data-view="recent" onclick="setView2('recent')">
+        <span class="nav-icon">🕐</span><span class="nav-label">Recent</span>
+      </div>
+      <div class="nav-item" data-view="encrypted" onclick="setView2('encrypted')">
+        <span class="nav-icon">🔒</span><span class="nav-label">Encrypted</span><span class="nav-badge" id="badge-enc"></span>
+      </div>
+      <div class="nav-item" data-view="backed" onclick="setView2('backed')">
+        <span class="nav-icon">☁️</span><span class="nav-label">Backed Up</span><span class="nav-badge" id="badge-backed"></span>
+      </div>
+      <div class="nav-item" data-view="starred" onclick="setView2('starred')">
+        <span class="nav-icon">⭐</span><span class="nav-label">Starred</span><span class="nav-badge" id="badge-starred"></span>
+      </div>
+
+      <div class="nav-section-label" style="margin-top:12px;">Folders</div>
+      <div id="sidebar-folders">
+        <div class="nav-item nav-add-folder" onclick="createVirtualFolder()">
+          <span class="nav-icon" style="color:var(--cyan);">+</span><span class="nav-label" style="color:var(--cyan);">New Folder</span>
+        </div>
+      </div>
+
+      <div class="nav-section-label" style="margin-top:12px;">Personal</div>
+      <div class="nav-item" data-page="succession" onclick="showPage('succession')">
+        <span class="nav-icon">📜</span><span class="nav-label">Succession Plan</span>
+      </div>
+
+      <div class="nav-section-label" style="margin-top:12px;">Automation</div>
+      <div class="nav-item nav-biz" onclick="showProModal('Watch Folders')">
+        <span class="nav-icon">👁️</span><span class="nav-label">Watch Folders</span><span class="nav-biz-badge">Pro</span>
+      </div>
+      <div class="nav-item nav-biz" onclick="showProModal('Employee Training')">
+        <span class="nav-icon">🎓</span><span class="nav-label">Training</span><span class="nav-biz-badge">Pro</span>
+      </div>
+
+      <div class="nav-section-label" style="margin-top:12px;">Backup</div>
+      <div class="nav-item" onclick="showPage('backup')">
+        <span class="nav-icon">💾</span><span class="nav-label">Backup &amp; Restore</span>
+      </div>
+
+      <div class="nav-section-label" style="margin-top:12px;">Account</div>
+      <div class="nav-item" onclick="showPage('settings');setTimeout(()=>document.getElementById('plan-section')&&document.getElementById('plan-section').scrollIntoView({behavior:'smooth'}),200)">
+        <span class="nav-icon">💎</span><span class="nav-label">Plans &amp; Pricing</span>
+      </div>
+      <div class="nav-item" data-page="ai" onclick="showPage('ai')">
+        <span class="nav-icon">🤖</span><span class="nav-label">Ask AI</span>
+      </div>
+      <div class="nav-item" data-page="settings" onclick="showPage('settings')">
+        <span class="nav-icon">⚙️</span><span class="nav-label">Settings</span>
+      </div>
+
+      <div class="nav-section-label" style="margin-top:12px;">Help</div>
+      <div class="nav-item" onclick="openHelpModal()">
+        <span class="nav-icon">❓</span><span class="nav-label">Help &amp; How-To</span>
+      </div>
+      <div class="nav-item" onclick="openReportModal()">
+        <span class="nav-icon">🐛</span><span class="nav-label">Report a Problem</span>
+      </div>
+
+      <div class="sidebar-spacer"></div>
+      <div id="sidebar-clock" style="padding:8px 14px 4px;font-size:12px;color:var(--muted);border-top:1px solid var(--border);line-height:1.7;">
+        <div id="clock-time" style="font-size:18px;font-weight:700;color:var(--text);font-variant-numeric:tabular-nums;letter-spacing:1px;"></div>
+        <div id="clock-date" style="font-size:11px;"></div>
+      </div>
+      <div id="sidebar-stats"></div>
+    </nav>
+
+    <!-- MAIN CONTENT -->
+    <main id="main">
+
+      <!-- ─── MY FILES ─────────────────────────────────────────── -->
+      <div class="page active" id="page-files">
+        <div class="page-header">
+          <h1 class="page-title">📁 My Files</h1>
+          <p class="page-sub" id="files-sub">Open a folder to start organizing your files.</p>
+        </div>
+        <div class="toolbar">
+          <div class="filter-pills" id="filter-pills" style="display:none;">
+            <button class="filter-pill active" data-prot="all" onclick="setProtFilter('all')">All Files</button>
+            <button class="filter-pill" data-prot="0" onclick="setProtFilter('0')">Organize Only</button>
+            <button class="filter-pill" data-prot="1" onclick="setProtFilter('1')">Encrypted</button>
+            <button class="filter-pill" data-prot="2" onclick="setProtFilter('2')">Backed Up</button>
+          </div>
+          <div class="toolbar-spacer"></div>
+          <span class="file-count-label" id="file-count-label" style="display:none;"></span>
+          <select class="filter-select" id="sort-by" onchange="renderFiles()" style="display:none;">
+            <option value="name">Name</option>
+            <option value="size">Size</option>
+            <option value="type">Type</option>
+            <option value="date">Date</option>
+          </select>
+          <div class="view-toggle" id="view-toggle" style="display:none;">
+            <button class="view-btn active" id="btn-grid" onclick="setView('grid')" title="Grid view">⊞</button>
+            <button class="view-btn" id="btn-list" onclick="setView('list')" title="List view">☰</button>
+          </div>
+          <button class="btn btn-sm btn-secondary" id="btn-select-all" onclick="selectAll()" style="display:none;">Select All</button>
+          <button class="btn btn-sm btn-secondary" id="btn-deselect-all" onclick="deselectAll()" style="display:none;">Deselect All</button>
+          <button class="btn btn-sm btn-danger" id="btn-delete-selected" onclick="deleteSelected()" style="display:none;">🗑️ Delete Selected (0)</button>
+          <button class="btn btn-sm btn-secondary" id="btn-tag-selected" onclick="tagSelected()" style="display:none;">🤖 AI Tag Selected</button>
+          <button class="btn btn-sm btn-secondary" onclick="window.print()" id="btn-print" style="display:none;">🖨️ Print Inventory</button>
+        </div>
+        <div id="files-unsupported" style="display:none;" class="warn-box">
+          ⚠️ <strong>File System Access API not supported.</strong> Please use Chrome or Edge for full file management features.
+        </div>
+        <div id="file-grid"></div>
+      </div>
+
+      <!-- ─── ENCRYPTED ────────────────────────────────────────── -->
+      <div class="page" id="page-encrypted">
+        <div class="page-header">
+          <h1 class="page-title">🔒 Encrypted Files</h1>
+          <p class="page-sub">Files protected with AES-256-GCM encryption.</p>
+        </div>
+        <div id="encrypted-list"></div>
+      </div>
+
+      <!-- ─── LOCAL BACKUP ──────────────────────────────────────── -->
+      <div class="page" id="page-backup">
+        <div class="page-header">
+          <h1 class="page-title">💾 Backup Files</h1>
+          <p class="page-sub">Copy your files to any folder — internal drive, external HD, or thumb drive.</p>
+        </div>
+
+        <div class="backup-hero">
+          <div class="backup-hero-icon">💾</div>
+          <div class="backup-hero-title">Back Up to Any Drive</div>
+          <div class="backup-hero-sub">
+            Click <strong>Back Up Now</strong> and pick a destination folder. OrcaFiles copies all your files there,
+            along with a catalog file so you can restore later. Works with your internal hard drive, an external drive,
+            or a thumb/USB drive — anything your browser can see.
+          </div>
+          <button class="btn btn-primary" style="font-size:15px;padding:12px 32px;" onclick="backupToFolder()">💾 Back Up Now</button>
+        </div>
+
+        <div class="backup-tip-grid" style="margin-bottom:20px;">
+          <div class="backup-tip">
+            <span class="tip-icon">🖥️</span>
+            <strong>Internal Drive</strong>
+            Good for quick access. Also keep a second copy off your computer.
+          </div>
+          <div class="backup-tip">
+            <span class="tip-icon">🔌</span>
+            <strong>External HD</strong>
+            Best for large file collections. Unplug and store safely.
+          </div>
+          <div class="backup-tip">
+            <span class="tip-icon">🟦</span>
+            <strong>Thumb Drive</strong>
+            Portable. Carry it with you or store it in a safe place.
+          </div>
+        </div>
+
+        <div id="backup-status-card">
+          <div class="card-title" style="margin-bottom:12px;">📊 Backup Status</div>
+          <div class="backup-stat-row">
+            <span class="backup-stat-label">Files in catalog</span>
+            <span class="backup-stat-val" id="bkp-stat-total">—</span>
+          </div>
+          <div class="backup-stat-row">
+            <span class="backup-stat-label">Files with folder access</span>
+            <span class="backup-stat-val" id="bkp-stat-accessible">—</span>
+          </div>
+          <div class="backup-stat-row">
+            <span class="backup-stat-label">Last backup</span>
+            <span class="backup-stat-val" id="bkp-stat-last">Never</span>
+          </div>
+        </div>
+
+        <div class="info-box" style="margin-top:20px;">
+          <strong>💡 Tip:</strong> After backing up to a thumb drive, you can drag that folder into Google Drive,
+          Dropbox, or any cloud service yourself — no accounts needed inside OrcaFiles.
+        </div>
+      </div>
+
+      <!-- ─── ASK AI ────────────────────────────────────────────── -->
+      <div class="page" id="page-ai">
+        <div class="page-header">
+          <h1 class="page-title">🤖 Ask AI</h1>
+          <p class="page-sub">Powered by Lightchain AIVM — no wallet needed for AI.</p>
+        </div>
+        <div class="card" style="margin-bottom:16px;">
+          <div class="card-title">✨ AI Features</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <button class="btn btn-secondary" onclick="showPage('files')">🏷️ Auto-Tag Files</button>
+            <button class="btn btn-secondary" onclick="openSummaryModal()">📝 Summarize Document</button>
+            <button class="btn btn-secondary" onclick="toggleAIPanel()">💬 Open Chat Panel</button>
+            <button class="btn btn-secondary" onclick="focusSearch()">🔍 Smart Search</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-title">💬 AI Chat</div>
+          <div id="page-ai-messages" style="min-height:200px;display:flex;flex-direction:column;gap:10px;margin-bottom:12px;max-height:360px;overflow-y:auto;padding:4px 0;"></div>
+          <div style="display:flex;gap:8px;">
+            <input id="page-ai-input" type="text" class="form-input" placeholder="Ask anything about your files…" onkeydown="if(event.key==='Enter')sendPageAI()" style="flex:1;">
+            <button class="btn btn-primary" onclick="sendPageAI()">Send</button>
+          </div>
+          <p style="font-size:11px;color:var(--muted);margin-top:8px;">~0.02 LCAI per message • <span id="ai-uses-left-label">5 free uses remaining</span></p>
+        </div>
+      </div>
+
+      <!-- ─── SETTINGS ──────────────────────────────────────────── -->
+      <div class="page" id="page-settings">
+        <div class="page-header">
+          <h1 class="page-title">⚙️ Settings</h1>
+          <p class="page-sub">Manage your OrcaFiles preferences and data.</p>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-title">General</div>
+          <div class="settings-card">
+            <div class="toggle-row">
+              <div><div class="toggle-label">Auto-tag on file add</div><div class="toggle-sub">Ask AI to tag new files automatically</div></div>
+              <label class="toggle"><input type="checkbox" id="toggle-autotag" onchange="saveSettings()"><span class="toggle-slider"></span></label>
+            </div>
+            <div class="toggle-row" style="border-bottom:none;">
+              <div><div class="toggle-label">Show file extensions</div><div class="toggle-sub">Display .pdf, .docx etc. in file names</div></div>
+              <label class="toggle"><input type="checkbox" id="toggle-extensions" checked onchange="saveSettings()"><span class="toggle-slider"></span></label>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-title">Default Protection Level</div>
+          <div class="settings-card">
+            <select class="form-select" id="default-protection" onchange="saveSettings()">
+              <option value="0">🔵 Organize Only — just catalog</option>
+              <option value="1" selected>🟡 Encrypted — AES-256-GCM copy</option>
+              <option value="2">🟢 Backed Up — encrypted + cloud sync</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="settings-section" id="plan-section">
+          <div class="settings-title">Plans &amp; Subscription</div>
+          <div class="settings-card">
+            <p style="font-size:12px;color:var(--muted);margin-bottom:14px;">Current plan: <strong id="plan-current-tier" style="color:var(--cyan);">Free</strong> · Paid in LCAI — no credit cards, no accounts.</p>
+            <div class="plan-cards-row">
+              <div class="plan-card">
+                <div class="plan-card-name">Free</div>
+                <div class="plan-card-price">$0</div>
+                <ul class="plan-card-features">
+                  <li>5 AI uses total</li>
+                  <li>File organizing &amp; tagging</li>
+                  <li>AES-256 encryption</li>
+                  <li class="dim">No Watch Folders</li>
+                  <li class="dim">No Training Module</li>
+                </ul>
+                <div style="margin-top:auto;padding-top:12px;font-size:11px;color:var(--muted);">Current plan</div>
+              </div>
+              <div class="plan-card plan-card-highlight">
+                <div class="plan-card-name">🏠 Home</div>
+                <div class="plan-card-price">$1.99<span style="font-size:13px;font-weight:400;">/mo</span></div>
+                <ul class="plan-card-features">
+                  <li>Unlimited AI tagging</li>
+                  <li>Ask Keiko AI chat</li>
+                  <li>Encryption &amp; backup</li>
+                  <li class="dim">No Watch Folders</li>
+                  <li class="dim">No Training Module</li>
+                </ul>
+                <button class="btn btn-primary btn-sm" style="margin-top:auto;" onclick="openPaymentModal('home')">Upgrade to Home</button>
+              </div>
+              <div class="plan-card plan-card-pro">
+                <div class="plan-card-name">⭐ Pro</div>
+                <div class="plan-card-price">$4.99<span style="font-size:13px;font-weight:400;">/mo</span></div>
+                <ul class="plan-card-features">
+                  <li>Everything in Home</li>
+                  <li>Watch Folders</li>
+                  <li>Training Module</li>
+                  <li>Priority features</li>
+                </ul>
+                <button class="btn btn-primary btn-sm" style="margin-top:auto;background:linear-gradient(135deg,#7c3aed,#00d4ff);" onclick="openPaymentModal('pro')">Upgrade to Pro</button>
+              </div>
+            </div>
+            <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap;">
+              <button class="btn btn-ghost btn-sm" onclick="walletAction()">👛 Wallet</button>
+              <button class="btn btn-ghost btn-sm" onclick="openPaymentModal()">🔑 Renew / Change Plan</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section">
+          <div class="settings-title">Data</div>
+          <div class="settings-card">
+            <div style="display:flex;gap:10px;flex-wrap:wrap;">
+              <button class="btn btn-secondary btn-sm" onclick="exportCatalog()">📥 Export Catalog (JSON)</button>
+              <button class="btn btn-secondary btn-sm" onclick="importCatalog()">📤 Import Catalog</button>
+              <input type="file" id="import-file-input" accept=".json" style="display:none;" onchange="doImportCatalog(event)">
+              <button class="btn btn-danger btn-sm" onclick="clearAllData()">🗑️ Clear All Data</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="settings-section" id="business-section">
+          <div class="settings-title">Business Version</div>
+          <div class="settings-card">
+            <p style="font-size:14px;color:var(--text);font-weight:600;margin-bottom:8px;">💼 Need multi-user access or team messaging?</p>
+            <p style="font-size:13px;color:var(--muted);margin-bottom:16px;line-height:1.6;">
+              Download the OrcaFiles Business Server — run it on your own PC or VPS for full multi-user features.
+            </p>
+            <button class="btn btn-primary" onclick="window.open('https://github.com/Keiko-Dev-LCAI/orcafiles-app/releases','_blank')">
+              ⬇️ Download Business Server
+            </button>
+            <table class="compare-table" style="margin-top:20px;">
+              <thead>
+                <tr><th>Feature</th><th>Free</th><th>Home</th><th>Pro</th><th>Business Server</th></tr>
+              </thead>
+              <tbody>
+                <tr><td class="feat">File organizing &amp; tagging</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+                <tr><td class="feat">AES-256 encryption</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+                <tr><td class="feat">AI auto-tagging</td><td class="no">5 uses</td><td class="yes">Unlimited</td><td class="yes">Unlimited</td><td class="yes">✓</td></tr>
+                <tr><td class="feat">Ask Keiko AI chat</td><td class="no">5 uses</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+                <tr><td class="feat">Local backup (any drive)</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+                <tr><td class="feat">Watch Folders</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+                <tr><td class="feat">Training Module</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td><td class="yes">✓</td></tr>
+                <tr><td class="feat">Multi-user / team</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td></tr>
+                <tr><td class="feat">Self-hosted server</td><td class="no">—</td><td class="no">—</td><td class="no">—</td><td class="yes">✓</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+    </main><!-- /#main -->
+  </div><!-- /#shell -->
+
+</div><!-- /#app -->
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!--  FLOATING AI PANEL                                              -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<button class="ai-fab" id="ai-fab" onclick="toggleAIPanel()" style="display:none;">
+  <span style="font-size:20px;">🤖</span>
+  <span class="ai-fab-text">Ask AI</span>
+</button>
+<div class="ai-panel" id="aiPanel">
+  <div class="ai-resize-handle" id="aiResizeHandle" title="Drag to resize">
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none">
+      <circle cx="3" cy="3"  r="1.2" fill="currentColor"/>
+      <circle cx="9" cy="3"  r="1.2" fill="currentColor"/>
+      <circle cx="3" cy="8"  r="1.2" fill="currentColor"/>
+      <circle cx="9" cy="8"  r="1.2" fill="currentColor"/>
+      <circle cx="3" cy="12" r="1.2" fill="currentColor"/>
+      <circle cx="9" cy="12" r="1.2" fill="currentColor"/>
+    </svg>
+  </div>
+  <div class="ai-panel-header" id="aiPanelHeader">
+    <span style="font-size:22px;">🤖</span>
+    <div>
+      <div class="ai-panel-title">OrcaFiles AI</div>
+      <div class="ai-panel-sub">Powered by Lightchain AIVM</div>
+    </div>
+    <button class="ai-panel-close" onclick="toggleAIPanel()">✕</button>
+  </div>
+  <div class="ai-messages" id="aiMessages"></div>
+  <div class="ai-input-row">
+    <textarea class="ai-input" id="aiInput" placeholder="Ask about your files…" rows="1" onkeydown="aiInputKeydown(event)"></textarea>
+    <button class="ai-send" id="aiSendBtn" onclick="sendAIMessage()">Send</button>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!--  CONTEXT MENU                                                   -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<div id="ctx-menu">
+  <div class="ctx-item" onclick="ctxAction('encrypt')">🔒 Encrypt File</div>
+  <div class="ctx-item" onclick="ctxAction('tag')">🏷️ Add Tags</div>
+  <div class="ctx-item" onclick="ctxAction('aitag')">🤖 AI Tag</div>
+  <div class="ctx-item" onclick="closeContextMenu();backupToFolder()">💾 Back Up All Files</div>
+  <div class="ctx-sep"></div>
+  <div class="ctx-item" onclick="ctxAction('info')">ℹ️ File Info</div>
+  <div class="ctx-item danger" onclick="ctxAction('remove')">✖ Remove from Catalog</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════ -->
+<!--  MODALS                                                         -->
+<!-- ═══════════════════════════════════════════════════════════════ -->
+
+<!-- Payment Modal -->
+<div id="modal-payment" class="modal-overlay" style="display:none;" onclick="modalOverlayClose(event,'modal-payment')">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>🔑 Choose Your Plan</h3>
+      <button class="modal-close" onclick="closeModal('modal-payment')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="info-box">⚡ Paid in LCAI via Lightchain — no credit cards, no accounts. Subscription lasts 31 days.</div>
+      <div class="tier-picker">
+        <label class="tier-pick-card" id="tier-pick-home">
+          <input type="radio" name="pay-tier" value="home" checked onchange="refreshPaymentPrice()">
+          <div class="tier-pick-name">🏠 Home</div>
+          <div class="tier-pick-price">$1.99<span>/mo</span></div>
+          <ul class="tier-pick-features">
+            <li>✓ Unlimited AI tagging</li>
+            <li>✓ Ask Keiko AI chat</li>
+            <li>✓ Encryption &amp; backup</li>
+            <li>✗ Watch Folders</li>
+            <li>✗ Training Module</li>
+          </ul>
+        </label>
+        <label class="tier-pick-card" id="tier-pick-pro">
+          <input type="radio" name="pay-tier" value="pro" onchange="refreshPaymentPrice()">
+          <div class="tier-pick-name">⭐ Pro</div>
+          <div class="tier-pick-price">$4.99<span>/mo</span></div>
+          <ul class="tier-pick-features">
+            <li>✓ Everything in Home</li>
+            <li>✓ Watch Folders</li>
+            <li>✓ Training Module</li>
+            <li>✓ Priority features</li>
+          </ul>
+        </label>
+      </div>
+      <div class="card" style="text-align:center;padding:20px;border-color:rgba(0,212,255,0.2);">
+        <div id="lcai-price-display">Loading…</div>
+        <div id="lcai-rate-display">Fetching LCAI price…</div>
+        <div id="pay-usd-label" style="font-size:12px;color:var(--muted);margin-top:6px;">per month</div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Send LCAI to this address:</label>
+        <div class="pay-address" onclick="copyPayAddress()" title="Click to copy">
+          0x1F899FaD2C8BD70b6eF356ae6cC3c0abDbB15EB5 📋
+        </div>
+      </div>
+      <div class="warn-box">Make sure you are on the <strong>Lightchain</strong> network (chain ID 9200) when sending. LCAI is the native token.</div>
+      <div class="form-group">
+        <label class="form-label">Paste your transaction hash:</label>
+        <input type="text" id="payment-txhash" class="form-input" placeholder="0x…" style="font-family:monospace;font-size:12px;">
+      </div>
+      <div id="payment-status" style="font-size:12px;color:var(--muted);"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-payment')">Cancel</button>
+      <button class="btn btn-primary" id="btn-verify-pay" onclick="submitPayment()">✅ Verify Payment</button>
+    </div>
+  </div>
+</div>
+
+<!-- Help Modal -->
+<div id="modal-help" class="modal-overlay" style="display:none;" onclick="modalOverlayClose(event,'modal-help')">
+  <div class="modal" style="max-width:580px;">
+    <div class="modal-header">
+      <h3>❓ Help &amp; How-To</h3>
+      <button class="modal-close" onclick="closeModal('modal-help')">✕</button>
+    </div>
+    <div class="modal-body" style="max-height:70vh;overflow-y:auto;">
+      <div class="help-section">
+        <div class="help-q">📁 How do I add files?</div>
+        <div class="help-a">Click <strong>+ Add Files</strong> in the top bar. Your browser will ask you to select a folder — OrcaFiles will scan it and show all your files. Nothing is uploaded anywhere; everything stays on your computer.</div>
+      </div>
+      <div class="help-section">
+        <div class="help-q">🔒 How do I encrypt a file?</div>
+        <div class="help-a">Right-click any file and choose <strong>Encrypt File</strong>, or set your Default Protection Level to "Encrypted" in Settings. OrcaFiles uses AES-256-GCM encryption — your key never leaves your device.</div>
+      </div>
+      <div class="help-section">
+        <div class="help-q">🤖 How do I use AI tagging?</div>
+        <div class="help-a">Right-click a file and choose <strong>AI Tag</strong>, or click the 🤖 button in the file details panel. AI tagging uses Lightchain AIVM and requires a Home or Pro plan (or you have 5 free uses to start).</div>
+      </div>
+      <div class="help-section">
+        <div class="help-q">💬 How do I use Ask Keiko (AI chat)?</div>
+        <div class="help-a">Click the <strong>Ask AI</strong> button in the bottom right corner. You can ask things like "find all my PDFs", "which files haven't been backed up?", or "summarize this document." Requires a Home or Pro plan.</div>
+      </div>
+      <div class="help-section">
+        <div class="help-q">⭐ What's the difference between plans?</div>
+        <div class="help-a"><strong>Free</strong> — 5 AI uses, all basic features. <strong>Home ($1.99/mo)</strong> — unlimited AI, all personal features. <strong>Pro ($4.99/mo)</strong> — everything in Home plus Watch Folders and Training Module. Payment is in LCAI via Lightchain — no credit cards needed.</div>
+      </div>
+      <div class="help-section">
+        <div class="help-q">👁️ What are Watch Folders? (Pro)</div>
+        <div class="help-a">Watch Folders automatically monitor a folder on your computer and tag or encrypt new files as they arrive. Available on the Pro plan.</div>
+      </div>
+      <div class="help-section">
+        <div class="help-q">💾 How does backup work?</div>
+        <div class="help-a">Go to <strong>Backup &amp; Restore</strong> in the sidebar and click <strong>Back Up Now</strong>. Your browser will ask you to pick a destination folder — choose your internal drive, an external hard drive, or a thumb drive. OrcaFiles copies all your files there along with a catalog file. You can then drag that folder into Google Drive, Dropbox, or any cloud service yourself. No accounts or sign-ins needed inside OrcaFiles.</div>
+      </div>
+      <div class="help-section">
+        <div class="help-q">🔑 How do I connect my wallet?</div>
+        <div class="help-a">Click <strong>Connect Wallet</strong> in the top bar. Make sure you have <strong>Trust Wallet</strong> installed and are on the <strong>Lightchain network</strong> (chain ID 9200). Your wallet is used to pay for your subscription in LCAI.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-help')">Close</button>
+      <button class="btn btn-primary" onclick="closeModal('modal-help');openReportModal()">🐛 Report a Problem</button>
+    </div>
+  </div>
+</div>
+
+<!-- Tags Modal -->
+<div id="modal-tags" class="modal-overlay" style="display:none;" onclick="modalOverlayClose(event,'modal-tags')">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>🏷️ Manage Tags</h3>
+      <button class="modal-close" onclick="closeModal('modal-tags')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--muted);" id="tags-file-name"></p>
+      <div class="form-group">
+        <label class="form-label">Tags (press Enter to add)</label>
+        <div class="tag-input-wrap" id="tag-input-wrap" onclick="document.getElementById('tag-real-input').focus()">
+          <input type="text" class="tag-real-input" id="tag-real-input" placeholder="Add tag…" onkeydown="tagInputKeydown(event)">
+        </div>
+      </div>
+      <button class="btn btn-secondary btn-sm" onclick="aiTagFile()">🤖 Get AI Tag Suggestions (~0.02 LCAI)</button>
+      <div id="ai-tag-suggestions" style="display:none;margin-top:8px;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-tags')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveFileTags()">Save Tags</button>
+    </div>
+  </div>
+</div>
+
+<!-- File Info Modal -->
+<div id="modal-info" class="modal-overlay" style="display:none;" onclick="modalOverlayClose(event,'modal-info')">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>ℹ️ File Info</h3>
+      <button class="modal-close" onclick="closeModal('modal-info')">✕</button>
+    </div>
+    <div class="modal-body" id="modal-info-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-primary btn-full" onclick="closeModal('modal-info')">Close</button>
+    </div>
+  </div>
+</div>
+
+<!-- Summary Modal -->
+<div id="modal-summary" class="modal-overlay" style="display:none;" onclick="modalOverlayClose(event,'modal-summary')">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>📝 Summarize Document</h3>
+      <button class="modal-close" onclick="closeModal('modal-summary')">✕</button>
+    </div>
+    <div class="modal-body">
+      <p style="font-size:13px;color:var(--muted);">Paste the text content of your document below and AI will return a plain-English summary.</p>
+      <div class="form-group">
+        <label class="form-label">Document Text</label>
+        <textarea class="form-textarea" id="summary-input" placeholder="Paste document text here…" style="min-height:140px;"></textarea>
+      </div>
+      <div id="summary-result" style="display:none;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-summary')">Close</button>
+      <button class="btn btn-primary" id="btn-summarize" onclick="doSummary()">🤖 Summarize (~0.02 LCAI)</button>
+    </div>
+  </div>
+</div>
+
+<!-- Virtual Folder Modal -->
+<div id="modal-vfolder" class="modal-overlay" style="display:none;" onclick="modalOverlayClose(event,'modal-vfolder')">
+  <div class="modal">
+    <div class="modal-header">
+      <h3>📂 New Virtual Folder</h3>
+      <button class="modal-close" onclick="closeModal('modal-vfolder')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="info-box">Virtual folders group files without moving them on disk.</div>
+      <div class="form-group">
+        <label class="form-label">Folder Name</label>
+        <input type="text" id="vfolder-name" class="form-input" placeholder="e.g. Tax Documents 2024">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal('modal-vfolder')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveVirtualFolder()">Create Folder</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- ethers.js v6 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+
+<script>
+'use strict';
+
+// ── CONSTANTS ─────────────────────────────────────────────────────
+const AIVM_GATEWAY  = 'https://web-production-0ccfe.up.railway.app/api/aivm';
+const AIVM_RELAY    = 'wss://relay.mainnet.lightchain.ai/ws';
+const AIVM_JOB_REG  = '0xfB15F90298e4CcD7106E76fFB5e520315cC42B0b';
+const AIVM_JOB_FEE  = 20000000000000000n;
+const AIVM_CHAIN_ID = 9200;
+const AIVM_CHAIN_HEX = '0x23F0';
+const AIVM_ABI = [
+  {name:'createSession',type:'function',stateMutability:'payable',
+   inputs:[{name:'paramsHash',type:'bytes32'},{name:'worker',type:'address'},
+           {name:'encWorkerKey',type:'bytes'},{name:'ephemeralPubKey',type:'bytes'},
+           {name:'initState',type:'bytes'},{name:'expiry',type:'uint256'}],
+   outputs:[{name:'sessionId',type:'uint256'}]},
+  {name:'submitJob',type:'function',stateMutability:'payable',
+   inputs:[{name:'sessionId',type:'uint256'},{name:'promptHash',type:'bytes32'}],
+   outputs:[{name:'jobId',type:'uint256'}]},
+  {anonymous:false,name:'SessionCreated',type:'event',
+   inputs:[{indexed:true,name:'sessionId',type:'uint256'},{indexed:true,name:'user',type:'address'},
+           {indexed:true,name:'paramsHash',type:'bytes32'},{indexed:false,name:'worker',type:'address'},
+           {indexed:false,name:'encWorkerKey',type:'bytes'},{indexed:false,name:'ephemeralPubKey',type:'bytes'}]},
+  {anonymous:false,name:'JobSubmitted',type:'event',
+   inputs:[{indexed:true,name:'jobId',type:'uint256'},{indexed:true,name:'sessionId',type:'uint256'},
+           {indexed:false,name:'worker',type:'address'}]},
+  {anonymous:false,name:'JobCompleted',type:'event',
+   inputs:[{indexed:true,name:'jobId',type:'uint256'},{indexed:true,name:'worker',type:'address'},
+           {indexed:false,name:'responseHash',type:'bytes32'},{indexed:false,name:'ciphertextHash',type:'bytes32'}]}
+];
+const LC_RPC        = 'https://rpc.mainnet.lightchain.ai';
+const PAYMENT_ADDR  = '0x1F899FaD2C8BD70b6eF356ae6cC3c0abDbB15EB5';
+const KEIKO_WALLET  = '0x1F899FaD2C8BD70b6eF356ae6cC3c0abDbB15EB5';
+const HOME_USD      = 1.99;
+const PRO_USD       = 4.99;
+const FREE_AI_USES  = 5;
+
+const LS_CATALOG    = 'orcafiles_v2_catalog';
+const LS_SETTINGS   = 'orcafiles_v2_settings';
+const LS_WALLET     = 'orcafiles_v2_wallet';
+const LS_WIZARD     = 'orcafiles_v2_wizard_done';
+
+
+// ── STATE ─────────────────────────────────────────────────────────
+const S = {
+  addr: null, provider: null, signer: null,
+  freeUsesLeft: FREE_AI_USES, paidUntil: null, paymentTxHash: null,
+  plan: 'free', planPaidUntil: null, planTxHash: null,
+  catalog: [],        // array of file entry objects
+  vfolders: [],       // virtual folders
+  dirHandle: null,    // FileSystemDirectoryHandle
+  selectedFiles: new Set(),
+  currentView: 'grid',
+  currentPage: 'files',
+  settings: {
+    autoTag: false,
+    showExtensions: true,
+    defaultProtection: 1
+  },
+  wizardData: {}
+};
+let _lcaiPrice = null, _lcaiPriceTs = 0;
+let _aivmJWT = null, _aivmJWTExp = 0;
+let _ctxTargetId = null;
+let _tagsTargetId = null;
+let _currentTags = [];
+
+// ── UTILS ─────────────────────────────────────────────────────────
+function el(id) { return document.getElementById(id); }
+function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+function uid() { return 'f_' + Date.now() + '_' + Math.random().toString(36).slice(2,7); }
+function fmtSize(bytes) {
+  if (!bytes) return '0 B';
+  const u = ['B','KB','MB','GB'];
+  let i = 0, v = bytes;
+  while (v >= 1024 && i < 3) { v /= 1024; i++; }
+  return v.toFixed(i ? 1 : 0) + ' ' + u[i];
+}
+function fmtDate(ts) {
+  if (!ts) return '';
+  return new Date(ts).toLocaleDateString();
+}
+
+function toast(msg, type, ms) {
+  const t = el('toast');
+  t.innerHTML = msg;
+  t.className = 'show' + (type === 'err' ? ' err' : type === 'ok' ? ' ok' : '');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => { t.className = ''; }, ms || 3200);
+}
+
+function openModal(id) { el(id).style.display = 'flex'; }
+function closeModal(id) { el(id).style.display = 'none'; }
+function modalOverlayClose(e, id) { if (e.target === e.currentTarget) closeModal(id); }
+
+function getFileIcon(name) {
+  const ext = (name.split('.').pop() || '').toLowerCase();
+  const map = {
+    pdf:'📄', doc:'📝', docx:'📝', txt:'📃', md:'📃',
+    xls:'📊', xlsx:'📊', csv:'📊', ppt:'📑', pptx:'📑',
+    jpg:'🖼️', jpeg:'🖼️', png:'🖼️', gif:'🖼️', svg:'🖼️', webp:'🖼️',
+    mp4:'🎬', mov:'🎬', avi:'🎬', mkv:'🎬', webm:'🎬',
+    mp3:'🎵', wav:'🎵', flac:'🎵', aac:'🎵',
+    zip:'🗜️', rar:'🗜️', '7z':'🗜️', tar:'🗜️', gz:'🗜️',
+    js:'⚙️', ts:'⚙️', py:'🐍', html:'🌐', css:'🎨', json:'📋',
+    exe:'⚙️', dmg:'💾', pkg:'💾', deb:'💾',
+    key:'🔑', pem:'🔑', cert:'🔑'
+  };
+  return map[ext] || '📁';
+}
+
+function protBadge(level) {
+  if (level === 1) return '<span class="protection-badge prot-1">🟡 Encrypted</span>';
+  if (level === 2) return '<span class="protection-badge prot-2">🟢 Backed Up</span>';
+  return '<span class="protection-badge prot-0">🔵 Organize Only</span>';
+}
+
+// ── STORAGE ───────────────────────────────────────────────────────
+function loadAll() {
+  try {
+    const raw = localStorage.getItem(LS_CATALOG);
+    const d = raw ? JSON.parse(raw) : {};
+    S.catalog    = d.catalog    || [];
+    S.vfolders   = d.vfolders   || [];
+  } catch(e) { console.error('loadAll', e); }
+
+  try {
+    const ws = localStorage.getItem(LS_WALLET);
+    const w = ws ? JSON.parse(ws) : {};
+    S.freeUsesLeft   = w.freeUsesLeft  != null ? w.freeUsesLeft : FREE_AI_USES;
+    S.paidUntil      = w.paidUntil     || null;
+    S.paymentTxHash  = w.paymentTxHash || null;
+    S.plan           = w.plan          || (S.paidUntil && Date.now() < S.paidUntil ? 'home' : 'free');
+    S.planPaidUntil  = w.planPaidUntil || S.paidUntil  || null;
+    S.planTxHash     = w.planTxHash    || null;
+  } catch(e) {}
+
+  try {
+    const ss = localStorage.getItem(LS_SETTINGS);
+    if (ss) Object.assign(S.settings, JSON.parse(ss));
+  } catch(e) {}
+}
+
+function saveCatalog() {
+  try {
+    localStorage.setItem(LS_CATALOG, JSON.stringify({ catalog: S.catalog, vfolders: S.vfolders }));
+  } catch(e) { console.error('saveCatalog', e); }
+}
+
+function saveWallet() {
+  try {
+    localStorage.setItem(LS_WALLET, JSON.stringify({
+      freeUsesLeft: S.freeUsesLeft,
+      paidUntil: S.paidUntil,
+      paymentTxHash: S.paymentTxHash,
+      plan: S.plan,
+      planPaidUntil: S.planPaidUntil,
+      planTxHash: S.planTxHash,
+      addr: S.addr
+    }));
+  } catch(e) {}
+}
+
+function saveSettings() {
+  S.settings.autoTag           = el('toggle-autotag')    ? el('toggle-autotag').checked      : S.settings.autoTag;
+  S.settings.showExtensions    = el('toggle-extensions') ? el('toggle-extensions').checked   : S.settings.showExtensions;
+  S.settings.defaultProtection = el('default-protection') ? parseInt(el('default-protection').value) : S.settings.defaultProtection;
+  try { localStorage.setItem(LS_SETTINGS, JSON.stringify(S.settings)); } catch(e) {}
+  renderFiles();
+}
+
+function loadSettingsUI() {
+  if (el('toggle-autotag'))    el('toggle-autotag').checked     = S.settings.autoTag;
+  if (el('toggle-extensions')) el('toggle-extensions').checked  = S.settings.showExtensions;
+  if (el('default-protection')) el('default-protection').value  = String(S.settings.defaultProtection);
+}
+
+function getTier() {
+  if (localStorage.getItem('orcafiles_owner') === '1') return 'pro';
+  if (S.addr && S.addr.toLowerCase() === KEIKO_WALLET.toLowerCase()) return 'pro';
+  if (S.plan === 'pro'  && S.planPaidUntil && Date.now() < S.planPaidUntil) return 'pro';
+  if (S.plan === 'home' && S.planPaidUntil && Date.now() < S.planPaidUntil) return 'home';
+  if (S.paidUntil && Date.now() < S.paidUntil) return 'home'; // backwards compat
+  return 'free';
+}
+function isPro()  { return getTier() === 'pro'; }
+function isPaid() { const t = getTier(); return t === 'home' || t === 'pro'; }
+function canUseAI() { return isPaid() || S.freeUsesLeft > 0; }
+function consumeFree() { if (!isPaid() && S.freeUsesLeft > 0) { S.freeUsesLeft--; saveWallet(); updateWalletUI(); } }
+
+// ── WALLET ────────────────────────────────────────────────────────
+async function walletAction() {
+  if (S.addr) { disconnectWallet(); }
+  else { await connectWallet(); }
+}
+
+async function connectWallet() {
+  if (!window.ethereum) {
+    toast('Please install Trust Wallet to connect.', 'err', 6000);
+    return;
+  }
+  try {
+    el('btn-wallet-action').textContent = 'Connecting…';
+    const prov = new ethers.BrowserProvider(window.ethereum);
+    await prov.send('eth_requestAccounts', []);
+    const sig = await prov.getSigner();
+    S.addr     = await sig.getAddress();
+    S.provider = prov;
+    S.signer   = sig;
+    saveWallet();
+    updateWalletUI();
+    toast('✅ Wallet connected!', 'ok');
+  } catch(e) {
+    toast('Wallet connection cancelled.', 'err');
+  } finally {
+    el('btn-wallet-action').textContent = S.addr ? 'Disconnect' : 'Connect Wallet';
+  }
+}
+
+function disconnectWallet() {
+  S.addr = null; S.provider = null; S.signer = null;
+  saveWallet();
+  updateWalletUI();
+  toast('Wallet disconnected.');
+}
+
+function updateWalletUI() {
+  const addrEl = el('wallet-addr-display');
+  const iconEl = el('wallet-status-icon');
+  const badgeEl = el('payment-badge-text');
+  const btnEl   = el('btn-wallet-action');
+  const aiLabel = el('ai-uses-left-label');
+
+  if (S.addr) {
+    addrEl.textContent = S.addr.slice(0,6) + '…' + S.addr.slice(-4);
+    iconEl.textContent = '🔗';
+    btnEl.textContent = 'Disconnect';
+    btnEl.className = 'btn btn-sm btn-ghost';
+  } else {
+    addrEl.textContent = 'No wallet';
+    iconEl.textContent = '🔌';
+    btnEl.textContent = 'Connect Wallet';
+    btnEl.className = 'btn btn-sm btn-primary';
+  }
+
+  const tier = getTier();
+  if (tier === 'pro') {
+    const days = S.planPaidUntil ? Math.ceil((S.planPaidUntil - Date.now()) / 86400000) : '∞';
+    badgeEl.innerHTML = '<span class="paid-badge tier-pro" style="font-size:13px;padding:4px 12px;">⭐ Pro</span>';
+    btnEl.textContent = S.addr ? 'Disconnect' : 'Connect Wallet';
+    btnEl.className   = S.addr ? 'btn btn-sm btn-ghost' : 'btn btn-sm btn-ghost';
+  } else if (tier === 'home') {
+    const days = S.planPaidUntil ? Math.ceil((S.planPaidUntil - Date.now()) / 86400000) : '∞';
+    badgeEl.innerHTML = '<span class="paid-badge tier-home" style="font-size:13px;padding:4px 12px;">🏠 Home (' + days + 'd)</span>';
+  } else if (S.freeUsesLeft > 0) {
+    badgeEl.innerHTML = '<span class="free-badge">' + S.freeUsesLeft + ' free AI uses</span>';
+  } else {
+    badgeEl.innerHTML = '<span class="free-badge" onclick="openPaymentModal()" style="cursor:pointer;">🔑 Upgrade</span>';
+  }
+
+  if (aiLabel) {
+    if (tier === 'pro')  aiLabel.textContent = 'Unlimited (Pro)';
+    else if (tier === 'home') aiLabel.textContent = 'Unlimited (Home)';
+    else aiLabel.textContent = S.freeUsesLeft + ' free uses remaining';
+  }
+  // update plan settings UI if visible
+  if (el('plan-current-tier')) el('plan-current-tier').textContent = tier.charAt(0).toUpperCase() + tier.slice(1);
+
+  // show FAB if app is visible
+  const fab = el('ai-fab');
+  if (fab) fab.style.display = '';
+}
+
+// ── LCAI PRICE ────────────────────────────────────────────────────
+async function getLCAIPrice() {
+  if (_lcaiPrice && Date.now() - _lcaiPriceTs < 300000) return _lcaiPrice;
+  for (const id of ['lightchain-ai', 'lightchain']) {
+    try {
+      const r = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=' + id + '&vs_currencies=usd');
+      const d = await r.json();
+      const p = d[id] && d[id].usd;
+      if (p && p > 0) { _lcaiPrice = parseFloat(p); _lcaiPriceTs = Date.now(); return _lcaiPrice; }
+    } catch(e) {}
+  }
+  try {
+    const r = await fetch('https://api.dexscreener.com/latest/dex/search?q=LCAI');
+    const d = await r.json();
+    for (const pair of (d.pairs || [])) {
+      if (pair.baseToken && pair.baseToken.symbol && pair.baseToken.symbol.toUpperCase() === 'LCAI') {
+        const p = parseFloat(pair.priceUsd || 0);
+        if (p > 0) { _lcaiPrice = p; _lcaiPriceTs = Date.now(); return p; }
+      }
+    }
+  } catch(e) {}
+  return _lcaiPrice || 0.004;
+}
+
+function getSelectedPlanUSD() {
+  const sel = document.querySelector('input[name="pay-tier"]:checked');
+  return sel && sel.value === 'pro' ? PRO_USD : HOME_USD;
+}
+
+async function getRequiredLCAIWei() {
+  const price = await getLCAIPrice();
+  const lcai  = getSelectedPlanUSD() / price;
+  return BigInt(Math.round(lcai * 1e18));
+}
+
+// ── PAYMENT ───────────────────────────────────────────────────────
+async function openPaymentModal(tier) {
+  openModal('modal-payment');
+  el('lcai-price-display').textContent = 'Loading…';
+  el('lcai-rate-display').textContent  = '';
+  el('payment-status').textContent     = '';
+  if (tier) {
+    const radio = document.querySelector('input[name="pay-tier"][value="' + tier + '"]');
+    if (radio) radio.checked = true;
+  }
+  await refreshPaymentPrice();
+}
+
+async function refreshPaymentPrice() {
+  const usd = getSelectedPlanUSD();
+  try {
+    const price = await getLCAIPrice();
+    const lcai  = (usd / price).toFixed(2);
+    el('lcai-price-display').textContent = lcai + ' LCAI';
+    el('lcai-rate-display').textContent  = '1 LCAI = $' + price.toFixed(4) + ' USD';
+    el('pay-usd-label').textContent      = 'per month ($' + usd.toFixed(2) + ' USD equivalent)';
+  } catch(e) {
+    el('lcai-price-display').textContent = usd === PRO_USD ? '~1250 LCAI' : '~500 LCAI';
+    el('pay-usd-label').textContent      = 'per month ($' + usd.toFixed(2) + ' USD equivalent)';
+  }
+}
+
+function copyPayAddress() {
+  navigator.clipboard && navigator.clipboard.writeText(PAYMENT_ADDR).then(() => toast('Address copied! 📋', 'ok'));
+}
+
+async function verifyPaymentTx(txHash, requiredWei) {
+  const rpc = async (method, params) => {
+    const r = await fetch(LC_RPC, {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({jsonrpc: '2.0', id: 1, method, params})
+    });
+    return (await r.json()).result;
+  };
+  const tx = await rpc('eth_getTransactionByHash', [txHash]);
+  if (!tx) throw new Error('Transaction not found on Lightchain. Check the hash and network.');
+  if (!tx.to || tx.to.toLowerCase() !== KEIKO_WALLET.toLowerCase())
+    throw new Error('Payment was not sent to the correct address.');
+  const val = BigInt(tx.value || '0x0');
+  if (val < requiredWei) throw new Error('Payment too low. Required: ' + ethers.formatEther(requiredWei) + ' LCAI');
+  const block = await rpc('eth_getBlockByNumber', [tx.blockNumber, false]);
+  const ts = parseInt(block.timestamp, 16) * 1000;
+  if (Date.now() - ts > 31 * 24 * 3600 * 1000) throw new Error('Payment is older than 31 days. Please renew.');
+  return ts;
+}
+
+async function submitPayment() {
+  const txHash = el('payment-txhash').value.trim();
+  if (!txHash || !txHash.startsWith('0x')) { toast('Enter a valid 0x… transaction hash', 'err'); return; }
+  el('payment-status').textContent = 'Verifying on Lightchain…';
+  el('btn-verify-pay').disabled = true;
+  try {
+    const reqWei    = await getRequiredLCAIWei();
+    const ts        = await verifyPaymentTx(txHash, reqWei);
+    const selPlan   = (document.querySelector('input[name="pay-tier"]:checked') || {}).value || 'home';
+    S.plan          = selPlan;
+    S.planPaidUntil = ts + (31 * 24 * 3600 * 1000);
+    S.planTxHash    = txHash;
+    S.paidUntil     = S.planPaidUntil; // backwards compat
+    S.paymentTxHash = txHash;
+    saveWallet();
+    closeModal('modal-payment');
+    updateWalletUI();
+    const label = selPlan === 'pro' ? 'Pro' : 'Home';
+    toast('🎉 Payment verified! ' + label + ' plan unlocked for 31 days.', 'ok', 5000);
+  } catch(e) {
+    el('payment-status').textContent = '';
+    toast(e.message || 'Verification failed', 'err', 6000);
+  } finally {
+    el('btn-verify-pay').disabled = false;
+  }
+}
+
+// ── NETWORK SWITCH ────────────────────────────────────────────────
+async function switchToLightchain() {
+  if (!window.ethereum) throw new Error('No wallet found');
+  try {
+    await window.ethereum.request({method: 'wallet_switchEthereumChain', params: [{chainId: AIVM_CHAIN_HEX}]});
+  } catch(e) {
+    if (e.code === 4902 || e.code === -32603) {
+      await window.ethereum.request({method: 'wallet_addEthereumChain', params: [{
+        chainId: AIVM_CHAIN_HEX, chainName: 'Lightchain AI',
+        rpcUrls: [LC_RPC],
+        nativeCurrency: {name: 'Lightchain AI', symbol: 'LCAI', decimals: 18},
+        blockExplorerUrls: ['https://mainnet.lightscan.app']
+      }]});
+    } else throw e;
+  }
+}
+</script>
+<script>
+'use strict';
+
+// ── ENCODING HELPERS ──────────────────────────────────────────────
+function bytesToHex(arr) {
+  let h = '0x';
+  for (const b of arr) h += b.toString(16).padStart(2, '0');
+  return h;
+}
+function hexToBytes(hex) {
+  const s = hex.replace(/^0x/i, '');
+  const out = new Uint8Array(s.length / 2);
+  for (let i = 0; i < out.length; i++) out[i] = parseInt(s.slice(i*2, i*2+2), 16);
+  return out;
+}
+function base64ToBytes(b64) {
+  const bin = atob(b64.replace(/-/g, '+').replace(/_/g, '/'));
+  const out = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+  return out;
+}
+function bytesToBase64(arr) {
+  let bin = '';
+  const bytes = new Uint8Array(arr);
+  for (const b of bytes) bin += String.fromCharCode(b);
+  return btoa(bin);
+}
+function decodePubkey(s) {
+  if (!s) throw new Error('empty pubkey');
+  s = s.trim();
+  if (s.startsWith('0x') || s.startsWith('0X')) return hexToBytes(s);
+  if (/^[0-9a-fA-F]{130}$/.test(s)) return hexToBytes(s);
+  return base64ToBytes(s);
+}
+
+// ── WEBCRYPTO HELPERS ─────────────────────────────────────────────
+async function ecdhWrap(sessionKey, peerPubBytes) {
+  const peerPub = await crypto.subtle.importKey('raw', peerPubBytes, {name:'ECDH',namedCurve:'P-256'}, false, []);
+  const ephemKP = await crypto.subtle.generateKey({name:'ECDH',namedCurve:'P-256'}, true, ['deriveBits']);
+  const sharedBits = await crypto.subtle.deriveBits({name:'ECDH',public:peerPub}, ephemKP.privateKey, 256);
+  const aesKey = await crypto.subtle.importKey('raw', sharedBits, {name:'AES-GCM'}, false, ['encrypt']);
+  const nonce = crypto.getRandomValues(new Uint8Array(12));
+  const ctBuf = await crypto.subtle.encrypt({name:'AES-GCM',iv:nonce}, aesKey, sessionKey);
+  const ct = new Uint8Array(ctBuf);
+  const ephemPubRaw = await crypto.subtle.exportKey('raw', ephemKP.publicKey);
+  const ephemPub = new Uint8Array(ephemPubRaw);
+  const result = new Uint8Array(65 + 12 + ct.byteLength);
+  result.set(ephemPub, 0); result.set(nonce, 65); result.set(ct, 77);
+  return result;
+}
+async function aesEncryptFile(key, plaintext) {
+  const nonce = crypto.getRandomValues(new Uint8Array(12));
+  const aesKey = await crypto.subtle.importKey('raw', key, {name:'AES-GCM'}, false, ['encrypt']);
+  const ct = await crypto.subtle.encrypt({name:'AES-GCM',iv:nonce}, aesKey, plaintext);
+  const result = new Uint8Array(12 + ct.byteLength);
+  result.set(nonce, 0); result.set(new Uint8Array(ct), 12);
+  return result;
+}
+async function aesDecryptFile(key, blob) {
+  const nonce = blob.slice(0, 12); const ct = blob.slice(12);
+  const aesKey = await crypto.subtle.importKey('raw', key, {name:'AES-GCM'}, false, ['decrypt']);
+  return new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv:nonce}, aesKey, ct));
+}
+async function aesEncryptPrompt(sessionKey, plaintext) {
+  const nonce = crypto.getRandomValues(new Uint8Array(12));
+  const aesKey = await crypto.subtle.importKey('raw', sessionKey, {name:'AES-GCM'}, false, ['encrypt']);
+  const ct = await crypto.subtle.encrypt({name:'AES-GCM',iv:nonce}, aesKey, plaintext);
+  const result = new Uint8Array(12 + ct.byteLength);
+  result.set(nonce, 0); result.set(new Uint8Array(ct), 12);
+  return result;
+}
+async function aesDecryptResponse(sessionKey, blob) {
+  const nonce = blob.slice(0, 12); const ct = blob.slice(12);
+  const aesKey = await crypto.subtle.importKey('raw', sessionKey, {name:'AES-GCM'}, false, ['decrypt']);
+  return new Uint8Array(await crypto.subtle.decrypt({name:'AES-GCM',iv:nonce}, aesKey, ct));
+}
+
+// ── AIVM JWT ──────────────────────────────────────────────────────
+async function getAivmJWT() {
+  if (_aivmJWT && Date.now() < _aivmJWTExp - 30000) return _aivmJWT;
+  if (!S.addr || !S.signer) throw new Error('Connect your wallet first');
+  const r = await fetch(AIVM_GATEWAY + '/api/auth/challenge?address=' + S.addr);
+  if (!r.ok) throw new Error('AIVM auth failed (' + r.status + ')');
+  const { message } = await r.json();
+  const signature = await S.signer.signMessage(message);
+  const r2 = await fetch(AIVM_GATEWAY + '/api/auth/verify', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message, signature })
+  });
+  if (!r2.ok) throw new Error('AIVM verify failed (' + r2.status + ')');
+  const d2 = await r2.json();
+  _aivmJWT = d2.token;
+  _aivmJWTExp = new Date(d2.expiresAt).getTime();
+  return _aivmJWT;
+}
+
+// ── AIVM INFERENCE (full OrcaLearn-style on-chain flow) ───────────
+async function aivmInference(prompt, onProgress) {
+  const prog = onProgress || (() => {});
+  prog('Calling Lightchain AI…');
+  const res = await fetch('https://web-production-0ccfe.up.railway.app/api/chat', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt })
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '');
+    throw new Error('AI error ' + res.status + (txt ? ': ' + txt : ''));
+  }
+  const data = await res.json();
+  return data.reply || '';
+}
+
+// ── FILE ENCRYPTION (local AES-256-GCM) ───────────────────────────
+async function encryptFile(fileId) {
+  const entry = S.catalog.find(f => f.id === fileId);
+  if (!entry) return;
+  if (!entry._handle) { toast('Re-open the folder to access this file.', 'err'); return; }
+  try {
+    toast('🔒 Encrypting…');
+    const fileObj = await entry._handle.getFile();
+    const buf = await fileObj.arrayBuffer();
+    const key = crypto.getRandomValues(new Uint8Array(32));
+    const encrypted = await aesEncryptFile(key, buf);
+    // Store key as hex in entry (in-memory only — user should back this up)
+    entry.encKey = bytesToHex(key);
+    entry.protection = 1;
+    entry.encSize = encrypted.byteLength;
+    saveCatalog();
+    renderFiles();
+    toast('🟡 File encrypted! Key stored in catalog.', 'ok');
+  } catch(e) {
+    toast('Encryption failed: ' + e.message, 'err');
+  }
+}
+</script>
+<script>
+'use strict';
+
+// ── FILE SYSTEM ACCESS ────────────────────────────────────────────
+async function openFolder() {
+  if (!('showDirectoryPicker' in window)) {
+    el('files-unsupported').style.display = 'block';
+    toast('File System Access API requires Chrome or Edge.', 'err', 6000);
+    return;
+  }
+  try {
+    const dirHandle = await window.showDirectoryPicker({mode:'read'});
+    S.dirHandle = dirHandle;
+    toast('📂 Reading folder…');
+    await scanDirectory(dirHandle, dirHandle.name);
+    saveCatalog();
+    renderFiles();
+    showToolbar(true);
+    updateSidebarStats();
+    renderSidebarFolders();
+    el('files-sub').textContent = dirHandle.name + ' — ' + S.catalog.length + ' files';
+    toast('✅ Folder loaded: ' + S.catalog.length + ' files', 'ok');
+    if (S.settings.autoTag && canUseAI()) {
+      toast('🤖 Auto-tagging files…');
+    }
+  } catch(e) {
+    if (e.name !== 'AbortError') toast('Could not open folder: ' + e.message, 'err');
+  }
+}
+
+async function scanDirectory(dirHandle, path) {
+  for await (const [name, handle] of dirHandle.entries()) {
+    if (name.startsWith('.')) continue;
+    if (handle.kind === 'file') {
+      const fileObj = await handle.getFile();
+      const existingIdx = S.catalog.findIndex(f => f.path === path + '/' + name);
+      if (existingIdx >= 0) {
+        S.catalog[existingIdx]._handle = handle;
+      } else {
+        S.catalog.push({
+          id:         uid(),
+          name:       name,
+          path:       path + '/' + name,
+          size:       fileObj.size,
+          type:       fileObj.type || guessType(name),
+          modified:   fileObj.lastModified,
+          protection: S.settings.defaultProtection,
+          tags:       [],
+          encKey:     null,
+          encSize:    null,
+          _handle:    handle
+        });
+      }
+    } else if (handle.kind === 'directory') {
+      await scanDirectory(handle, path + '/' + name);
+    }
+  }
+}
+
+function guessType(name) {
+  const ext = (name.split('.').pop() || '').toLowerCase();
+  const map = {
+    pdf:'application/pdf', doc:'application/msword', docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    xls:'application/vnd.ms-excel', xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    jpg:'image/jpeg', jpeg:'image/jpeg', png:'image/png', gif:'image/gif', webp:'image/webp', svg:'image/svg+xml',
+    mp4:'video/mp4', mov:'video/quicktime', mp3:'audio/mpeg', wav:'audio/wav',
+    zip:'application/zip', txt:'text/plain', md:'text/markdown', json:'application/json',
+    js:'text/javascript', ts:'text/typescript', py:'text/x-python', html:'text/html', css:'text/css'
+  };
+  return map[ext] || 'application/octet-stream';
+}
+
+function showToolbar(show) {
+  ['filter-pills','sort-by','view-toggle','btn-select-all','btn-deselect-all','btn-delete-selected','btn-tag-selected','btn-print',
+   'file-count-label','btn-new-folder-top','btn-scan-folder-top','btn-add-files-top'].forEach(id => {
+    const e = el(id);
+    if (!e) return;
+    if (id === 'btn-add-files-top') e.style.display = show ? '' : '';
+    else e.style.display = show ? '' : 'none';
+  });
+  updateSidebarStats();
+  renderSidebarFolders();
+}
+
+// ── SIDEBAR VIEW FILTER ───────────────────────────────────────────
+let S2view = 'all';
+function setView2(v) {
+  S2view = v;
+  document.querySelectorAll('.nav-item[data-view]').forEach(n => {
+    n.classList.toggle('active', n.dataset.view === v);
+  });
+  document.querySelectorAll('.nav-item[data-page]').forEach(n => n.classList.remove('active'));
+  renderFiles();
+}
+
+function setProtFilter(val) {
+  document.querySelectorAll('.filter-pill').forEach(p => p.classList.toggle('active', p.dataset.prot === val));
+  renderFiles();
+}
+
+function toggleStar(fileId) {
+  const f = S.catalog.find(x => x.id === fileId);
+  if (!f) return;
+  f.starred = !f.starred;
+  saveCatalog();
+  renderFiles();
+  updateSidebarStats();
+}
+
+function updateSidebarStats() {
+  const total = S.catalog.length;
+  if (!total) { if (el('sidebar-stats')) el('sidebar-stats').innerHTML = ''; return; }
+  const enc = S.catalog.filter(f => f.protection >= 1).length;
+  const bkp = S.catalog.filter(f => f.protection === 2).length;
+  const starred = S.catalog.filter(f => f.starred).length;
+  const totalSize = S.catalog.reduce((a, f) => a + (f.size || 0), 0);
+  if (el('sidebar-stats')) {
+    el('sidebar-stats').innerHTML = `
+      <div>${total} files</div>
+      <div>${enc} encrypted &nbsp;·&nbsp; ${bkp} backed up</div>
+      <div>${fmtSize(totalSize)} total</div>`;
+  }
+  if (el('badge-all'))    el('badge-all').textContent    = total || '';
+  if (el('badge-enc'))    el('badge-enc').textContent    = enc || '';
+  if (el('badge-backed')) el('badge-backed').textContent = bkp || '';
+  if (el('badge-starred'))el('badge-starred').textContent= starred || '';
+}
+
+function renderSidebarFolders() {
+  const wrap = el('sidebar-folders');
+  if (!wrap) return;
+  const tags = new Set();
+  S.catalog.forEach(f => (f.tags || []).forEach(t => tags.add(t)));
+  const folders = [...tags].slice(0, 8);
+  const addBtn = `<div class="nav-item nav-add-folder" onclick="createVirtualFolder()">
+    <span class="nav-icon" style="color:var(--cyan);">+</span><span class="nav-label" style="color:var(--cyan);">New Folder</span></div>`;
+  if (!folders.length) { wrap.innerHTML = addBtn; return; }
+  wrap.innerHTML = folders.map(t =>
+    `<div class="nav-item" onclick="setView2('tag:${esc(t)}')">
+      <span class="nav-icon" style="font-size:10px;width:14px;height:14px;background:var(--cyan);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;"></span>
+      <span class="nav-label">${esc(t)}</span><span class="nav-badge">${S.catalog.filter(f=>(f.tags||[]).includes(t)).length}</span>
+    </div>`).join('') + addBtn;
+}
+
+function openReportModal() {
+  toast('To report a problem, use the Ask AI panel or email support. Thank you!', 'ok');
+}
+
+function openHelpModal() { openModal('modal-help'); }
+
+function openReportModal() {
+  window.open('https://tally.so/r/Bz2vWR', '_blank');
+}
+
+function showBizModal(feature) {
+  showProModal(feature);
+}
+function showProModal(feature) {
+  if (isPro()) return; // already Pro — shouldn't reach here
+  toast(feature + ' requires the Pro plan ($4.99/month). Go to Settings → Payment to upgrade.', 'warn', 5000);
+}
+
+// ── FILE RENDERING ────────────────────────────────────────────────
+function renderFiles() {
+  const grid = el('file-grid');
+  if (!grid) return;
+
+  // Update delete selected button count
+  const delBtn = el('btn-delete-selected');
+  if (delBtn) {
+    const n = S.selectedFiles.size;
+    delBtn.textContent = `🗑️ Delete Selected (${n})`;
+    delBtn.style.opacity = n > 0 ? '1' : '0.5';
+  }
+
+
+  const activePill = document.querySelector('.filter-pill.active');
+  const protFilter = activePill ? activePill.dataset.prot : 'all';
+  const sortBy     = el('sort-by') ? el('sort-by').value : 'name';
+  const searchTerm = el('search-input') ? el('search-input').value.trim().toLowerCase() : '';
+
+  let files = [...S.catalog];
+
+  // Sidebar view filter
+  if (S2view === 'encrypted') files = files.filter(f => f.protection >= 1);
+  else if (S2view === 'backed') files = files.filter(f => f.protection === 2);
+  else if (S2view === 'starred') files = files.filter(f => f.starred);
+  else if (S2view === 'recent') {
+    const week = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    files = files.filter(f => (f.modified || 0) >= week || (f.added || 0) >= week);
+  } else if (S2view && S2view.startsWith('tag:')) {
+    const tag = S2view.slice(4);
+    files = files.filter(f => (f.tags || []).includes(tag));
+  }
+
+  // Protection pill filter
+  if (protFilter !== 'all') {
+    const lvl = parseInt(protFilter);
+    files = files.filter(f => f.protection === lvl);
+  }
+
+  // Search filter
+  if (searchTerm) {
+    files = files.filter(f =>
+      f.name.toLowerCase().includes(searchTerm) ||
+      (f.tags || []).some(t => t.toLowerCase().includes(searchTerm))
+    );
+  }
+
+  // Update count label
+  if (el('file-count-label')) el('file-count-label').textContent = files.length + ' item' + (files.length !== 1 ? 's' : '');
+
+  // Sort
+  files.sort((a, b) => {
+    if (sortBy === 'size')     return (b.size || 0) - (a.size || 0);
+    if (sortBy === 'type')     return (a.type || '').localeCompare(b.type || '');
+    if (sortBy === 'date')     return (b.modified || 0) - (a.modified || 0);
+    return a.name.localeCompare(b.name);
+  });
+
+  if (!files.length) {
+    const msg = S.catalog.length === 0
+      ? '<div class="empty-state"><div class="empty-state-icon">📁</div><h3>No folder opened yet</h3><p>Click <strong>Open Folder</strong> to load files from your PC.</p><button class="btn btn-primary" onclick="openFolder()">📂 Open Folder</button></div>'
+      : '<div class="empty-state"><div class="empty-state-icon">🔍</div><h3>No files match</h3><p>Try a different filter or search term.</p></div>';
+    grid.innerHTML = msg;
+    return;
+  }
+
+  const isGrid = S.currentView === 'grid';
+  grid.className = isGrid ? '' : 'list-view';
+  grid.id = 'file-grid';
+
+  grid.innerHTML = files.map(f => {
+    const displayName = S.settings.showExtensions ? f.name : f.name.replace(/\.[^.]+$/, '');
+    const selected    = S.selectedFiles.has(f.id);
+    const starred     = f.starred ? ' starred' : '';
+    const tagsHtml    = (f.tags || []).slice(0,3).map(t => `<span class="tag-pill">${esc(t)}</span>`).join('');
+    const chk = `<input type="checkbox" class="file-select-cb" ${selected ? 'checked' : ''} onclick="event.stopPropagation();toggleFileSelect('${f.id}')" title="Select">`;
+    if (!isGrid) {
+      return `<div class="file-card file-card-list${selected ? ' selected' : ''}" data-id="${f.id}"
+        onclick="fileClick(event,'${f.id}')" oncontextmenu="showCtxMenu(event,'${f.id}')">
+        ${chk}
+        <span class="file-icon-lg">${getFileIcon(f.name)}</span>
+        <div class="fc-info">
+          <div class="file-name">${esc(displayName)}</div>
+          <div class="file-meta">${esc(fmtSize(f.size))} · ${esc(fmtDate(f.modified))}</div>
+          ${tagsHtml ? `<div class="file-tags">${tagsHtml}</div>` : ''}
+        </div>
+        <div>${protBadge(f.protection)}</div>
+        <button class="star-btn${starred}" onclick="event.stopPropagation();toggleStar('${f.id}')" title="Star">★</button>
+      </div>`;
+    }
+    return `<div class="file-card${selected ? ' selected' : ''}" data-id="${f.id}"
+      onclick="fileClick(event,'${f.id}')" oncontextmenu="showCtxMenu(event,'${f.id}')">
+      ${chk}
+      <div class="prot-badge-corner">${protBadge(f.protection)}</div>
+      <div class="file-icon-lg">${getFileIcon(f.name)}</div>
+      <div class="file-name">${esc(displayName)}</div>
+      <div class="file-meta">${esc(fmtSize(f.size))} · ${esc(fmtDate(f.modified))}</div>
+      ${tagsHtml ? `<div class="file-tags">${tagsHtml}</div>` : ''}
+      <button class="star-btn${starred}" onclick="event.stopPropagation();toggleStar('${f.id}')" title="Star">★</button>
+    </div>`;
+  }).join('');
+
+  renderEncryptedPage();
+}
+
+function renderEncryptedPage() {
+  const list = el('encrypted-list');
+  if (!list) return;
+  const encrypted = S.catalog.filter(f => f.protection >= 1);
+  if (!encrypted.length) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-state-icon">🔒</div><h3>No encrypted files yet</h3><p>Open a folder and encrypt files with AES-256-GCM.</p></div>';
+    return;
+  }
+  list.innerHTML = encrypted.map(f => `
+    <div class="card" style="display:flex;align-items:center;gap:14px;padding:14px 16px;margin-bottom:10px;">
+      <span style="font-size:28px;">${getFileIcon(f.name)}</span>
+      <div style="flex:1;min-width:0;">
+        <div style="font-weight:600;font-size:14px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(f.name)}</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:2px;">${fmtSize(f.size)} · ${fmtDate(f.modified)}</div>
+      </div>
+      ${protBadge(f.protection)}
+      <button class="btn btn-sm btn-ghost" onclick="openTagsModal('${f.id}')">🏷️ Tags</button>
+    </div>`).join('');
+}
+
+// ── VIEW / SELECTION ─────────────────────────────────────────────
+function setView(view) {
+  S.currentView = view;
+  el('btn-grid').className = 'view-btn' + (view === 'grid' ? ' active' : '');
+  el('btn-list').className = 'view-btn' + (view === 'list' ? ' active' : '');
+  renderFiles();
+}
+
+function fileClick(e, fileId) {
+  // Always toggle — no need to hold Shift/Ctrl
+  if (S.selectedFiles.has(fileId)) S.selectedFiles.delete(fileId);
+  else S.selectedFiles.add(fileId);
+  renderFiles();
+}
+
+function selectAll() {
+  S.catalog.forEach(f => S.selectedFiles.add(f.id));
+  renderFiles();
+}
+
+function deselectAll() {
+  S.selectedFiles.clear();
+  renderFiles();
+}
+
+function toggleFileSelect(fileId) {
+  if (S.selectedFiles.has(fileId)) S.selectedFiles.delete(fileId);
+  else S.selectedFiles.add(fileId);
+  renderFiles();
+}
+
+function deleteSelected() {
+  const count = S.selectedFiles.size;
+  if (count === 0) { toast('No files selected.', 'err'); return; }
+  if (!confirm(`Remove ${count} file${count > 1 ? 's' : ''} from your catalog? (Your actual files are NOT deleted from your computer.)`)) return;
+  S.catalog = S.catalog.filter(f => !S.selectedFiles.has(f.id));
+  S.selectedFiles.clear();
+  saveCatalog();
+  renderFiles();
+  toast(`🗑️ Removed ${count} file${count > 1 ? 's' : ''} from catalog.`, 'ok');
+}
+
+async function tagSelected() {
+  if (S.selectedFiles.size === 0) { toast('Select files first.', 'err'); return; }
+  if (!canUseAI()) { openPaymentModal(); return; }
+  const ids = [...S.selectedFiles];
+  toast('🤖 AI tagging ' + ids.length + ' file(s)…');
+  for (const id of ids) {
+    const f = S.catalog.find(x => x.id === id);
+    if (!f) continue;
+    try {
+      const tags = await getAITags(f.name, f.type);
+      f.tags = [...new Set([...(f.tags||[]), ...tags])];
+      consumeFree();
+    } catch(e) { toast('AI tag failed: ' + e.message, 'err'); break; }
+  }
+  saveCatalog();
+  renderFiles();
+  toast('✅ Tags applied!', 'ok');
+}
+
+// ── CONTEXT MENU ─────────────────────────────────────────────────
+function showCtxMenu(e, fileId) {
+  e.preventDefault();
+  _ctxTargetId = fileId;
+  const menu = el('ctx-menu');
+  menu.style.display = 'block';
+  menu.style.left = Math.min(e.clientX, window.innerWidth - 200) + 'px';
+  menu.style.top  = Math.min(e.clientY, window.innerHeight - 200) + 'px';
+}
+document.addEventListener('click', () => { if (el('ctx-menu')) el('ctx-menu').style.display = 'none'; });
+
+function ctxAction(action) {
+  el('ctx-menu').style.display = 'none';
+  const id = _ctxTargetId;
+  if (!id) return;
+  if (action === 'encrypt')  { encryptFile(id); }
+  else if (action === 'tag') { openTagsModal(id); }
+  else if (action === 'aitag') { aiTagSingle(id); }
+  else if (action === 'backup') {
+    const f = S.catalog.find(x => x.id === id);
+    if (f) { f.protection = 2; saveCatalog(); renderFiles(); toast('🟢 Marked for backup.', 'ok'); }
+  }
+  else if (action === 'info') { showFileInfo(id); }
+  else if (action === 'remove') {
+    S.catalog = S.catalog.filter(x => x.id !== id);
+    saveCatalog(); renderFiles(); toast('Removed from catalog.');
+  }
+}
+
+// ── VIRTUAL FOLDERS ───────────────────────────────────────────────
+function createVirtualFolder() { openModal('modal-vfolder'); }
+function saveVirtualFolder() {
+  const name = el('vfolder-name').value.trim();
+  if (!name) { toast('Enter a folder name.', 'err'); return; }
+  S.vfolders.push({id: uid(), name, fileIds: []});
+  saveCatalog();
+  closeModal('modal-vfolder');
+  el('vfolder-name').value = '';
+  toast('📂 Virtual folder created.', 'ok');
+}
+
+// ── FILE INFO ─────────────────────────────────────────────────────
+function showFileInfo(fileId) {
+  const f = S.catalog.find(x => x.id === fileId);
+  if (!f) return;
+  el('modal-info-body').innerHTML = `
+    <div class="wizard-summary-row"><span class="label">Name</span><span class="val">${esc(f.name)}</span></div>
+    <div class="wizard-summary-row"><span class="label">Path</span><span class="val" style="font-size:11px;font-family:monospace;word-break:break-all;">${esc(f.path)}</span></div>
+    <div class="wizard-summary-row"><span class="label">Size</span><span class="val">${esc(fmtSize(f.size))}</span></div>
+    <div class="wizard-summary-row"><span class="label">Type</span><span class="val">${esc(f.type || 'unknown')}</span></div>
+    <div class="wizard-summary-row"><span class="label">Modified</span><span class="val">${esc(fmtDate(f.modified))}</span></div>
+    <div class="wizard-summary-row"><span class="label">Protection</span><span class="val">${protBadge(f.protection)}</span></div>
+    <div class="wizard-summary-row"><span class="label">Tags</span><span class="val">${(f.tags||[]).map(t => '<span class="tag-pill">'+esc(t)+'</span>').join(' ') || '<span style="color:var(--muted)">None</span>'}</span></div>
+    ${f.encKey ? '<div class="warn-box" style="margin-top:4px;">🔑 Encryption key stored in catalog. Export your catalog to keep a backup of this key.</div>' : ''}`;
+  openModal('modal-info');
+}
+
+// ── SEARCH ────────────────────────────────────────────────────────
+function onSearchInput() {
+  clearTimeout(onSearchInput._t);
+  onSearchInput._t = setTimeout(() => {
+    if (S.currentPage === 'files') renderFiles();
+  }, 250);
+}
+
+function focusSearch() {
+  const inp = el('search-input');
+  if (inp) { inp.focus(); showPage('files'); }
+}
+
+// ── LOCAL BACKUP ─────────────────────────────────────────────────
+function updateBackupStatus() {
+  const total = S.catalog.length;
+  const accessible = S.catalog.filter(f => f._handle).length;
+  const lastRaw = localStorage.getItem('orcafiles_last_backup');
+
+  const totalEl = el('bkp-stat-total');
+  const accessEl = el('bkp-stat-accessible');
+  const lastEl = el('bkp-stat-last');
+
+  if (totalEl) totalEl.textContent = total + ' file' + (total !== 1 ? 's' : '');
+  if (accessEl) {
+    accessEl.textContent = accessible + ' / ' + total;
+    if (accessible < total && total > 0) accessEl.style.color = 'var(--yellow)';
+    else accessEl.style.color = 'var(--green)';
+  }
+  if (lastEl) {
+    if (lastRaw) {
+      const d = new Date(parseInt(lastRaw, 10));
+      lastEl.textContent = d.toLocaleDateString([], {month:'short', day:'numeric', year:'numeric'}) +
+        ' at ' + d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+      lastEl.style.color = 'var(--green)';
+    } else {
+      lastEl.textContent = 'Never';
+      lastEl.style.color = 'var(--muted)';
+    }
+  }
+}
+
+async function backupToFolder() {
+  if (!window.showDirectoryPicker) {
+    toast('Your browser does not support folder picker. Please use Chrome or Edge.', 'err', 6000);
+    return;
+  }
+  if (S.catalog.length === 0) {
+    toast('No files in catalog yet. Open a folder first.', 'warn');
+    return;
+  }
+  const accessible = S.catalog.filter(f => f._handle);
+  if (accessible.length === 0) {
+    toast('Files not loaded. Click “Open Folder” in Files first, then try backup again.', 'warn', 6000);
+    return;
+  }
+
+  // Let user pick destination
+  let destDir;
+  try {
+    destDir = await window.showDirectoryPicker({ mode: 'readwrite', startIn: 'downloads' });
+  } catch(e) {
+    if (e.name !== 'AbortError') toast('Could not open folder picker: ' + e.message, 'err');
+    return;
+  }
+
+  // Create dated subfolder
+  const dateStr = new Date().toISOString().slice(0, 10);
+  let backupFolder;
+  try {
+    backupFolder = await destDir.getDirectoryHandle('OrcaFiles-Backup-' + dateStr, { create: true });
+  } catch(e) {
+    toast('Could not create backup folder: ' + e.message, 'err');
+    return;
+  }
+
+  toast('💾 Backing up ' + accessible.length + ' files…', 'ok', 3000);
+
+  let copied = 0, failed = 0;
+  for (const f of accessible) {
+    try {
+      const fileObj = await f._handle.getFile();
+      const destFile = await backupFolder.getFileHandle(f.name, { create: true });
+      const writable  = await destFile.createWritable();
+      await writable.write(await fileObj.arrayBuffer());
+      await writable.close();
+      copied++;
+    } catch(e) {
+      failed++;
+    }
+  }
+
+  // Write catalog JSON alongside the files
+  try {
+    const catalogData = JSON.stringify({
+      version: 2,
+      exportedAt: new Date().toISOString(),
+      catalog: S.catalog.map(f => { const {_handle, ...rest} = f; return rest; }),
+      vfolders: S.vfolders
+    }, null, 2);
+    const catFile    = await backupFolder.getFileHandle('orcafiles-catalog.json', { create: true });
+    const catWritable = await catFile.createWritable();
+    await catWritable.write(catalogData);
+    await catWritable.close();
+  } catch(e) { /* non-fatal */ }
+
+  // Save timestamp
+  localStorage.setItem('orcafiles_last_backup', Date.now().toString());
+  updateBackupStatus();
+
+  if (failed === 0) {
+    toast('✅ Backup complete! ' + copied + ' file' + (copied !== 1 ? 's' : '') +
+      ' copied to “' + backupFolder.name + '”', 'ok', 6000);
+  } else {
+    toast('⚠️ Backup done: ' + copied + ' copied, ' + failed + ' could not be read. ' +
+      'Make sure your files folder is still open.', 'warn', 7000);
+  }
+}
+
+// ── EXPORT / IMPORT ───────────────────────────────────────────────
+function exportCatalog() {
+  const data = JSON.stringify({catalog: S.catalog.map(f => {
+    const {_handle, ...rest} = f; return rest;
+  }), vfolders: S.vfolders, exportedAt: new Date().toISOString()}, null, 2);
+  const blob = new Blob([data], {type: 'application/json'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url; a.download = 'orcafiles-catalog.json'; a.click();
+  URL.revokeObjectURL(url);
+  toast('📥 Catalog exported.', 'ok');
+}
+
+function importCatalog() { el('import-file-input').click(); }
+
+function doImportCatalog(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    try {
+      const d = JSON.parse(ev.target.result);
+      if (d.catalog) {
+        S.catalog  = d.catalog;
+        S.vfolders = d.vfolders || [];
+        saveCatalog(); renderFiles();
+        toast('📤 Catalog imported: ' + S.catalog.length + ' files.', 'ok');
+      } else { toast('Invalid catalog file.', 'err'); }
+    } catch(err) { toast('Import failed: ' + err.message, 'err'); }
+  };
+  reader.readAsText(file);
+}
+
+function clearAllData() {
+  if (!confirm('Clear all OrcaFiles data? This cannot be undone.')) return;
+  [LS_CATALOG, LS_SETTINGS, LS_WALLET].forEach(k => localStorage.removeItem(k));
+  S.catalog = []; S.vfolders = []; S.dirHandle = null;
+  S.freeUsesLeft = FREE_AI_USES; S.paidUntil = null;
+  S.plan = 'free'; S.planPaidUntil = null; S.planTxHash = null;
+  renderFiles(); renderEncryptedPage();
+  updateWalletUI();
+  toast('🗑️ All data cleared.', 'ok');
+}
+</script>
+<script>
+'use strict';
+
+// ── TAGS MODAL ────────────────────────────────────────────────────
+function openTagsModal(fileId) {
+  const f = S.catalog.find(x => x.id === fileId);
+  if (!f) return;
+  _tagsTargetId = fileId;
+  _currentTags = [...(f.tags || [])];
+  el('tags-file-name').textContent = f.name;
+  renderTagsInModal();
+  el('ai-tag-suggestions').style.display = 'none';
+  openModal('modal-tags');
+}
+
+function renderTagsInModal() {
+  const wrap = el('tag-input-wrap');
+  const input = el('tag-real-input');
+  wrap.innerHTML = '';
+  wrap.appendChild(input);
+  _currentTags.forEach(t => {
+    const span = document.createElement('span');
+    span.className = 'tag-pill';
+    span.textContent = t;
+    span.title = 'Click to remove';
+    span.onclick = () => { _currentTags = _currentTags.filter(x => x !== t); renderTagsInModal(); };
+    wrap.insertBefore(span, input);
+  });
+  input.focus();
+}
+
+function tagInputKeydown(e) {
+  const input = el('tag-real-input');
+  if (e.key === 'Enter' || e.key === ',') {
+    e.preventDefault();
+    const val = input.value.trim().replace(/,/g,'');
+    if (val && !_currentTags.includes(val)) { _currentTags.push(val); renderTagsInModal(); }
+    input.value = '';
+  } else if (e.key === 'Backspace' && !input.value && _currentTags.length) {
+    _currentTags.pop(); renderTagsInModal();
+  }
+}
+
+function saveFileTags() {
+  const input = el('tag-real-input');
+  const pending = input.value.trim();
+  if (pending && !_currentTags.includes(pending)) _currentTags.push(pending);
+  const f = S.catalog.find(x => x.id === _tagsTargetId);
+  if (f) { f.tags = _currentTags; saveCatalog(); renderFiles(); }
+  closeModal('modal-tags');
+  toast('✅ Tags saved.', 'ok');
+}
+
+// ── AI TAGGING ────────────────────────────────────────────────────
+async function getAITags(fileName, fileType) {
+  const prompt = 'You are a file organization assistant. Given a filename and type, return 3-5 concise tags that describe the file, comma-separated. No explanations — just the tags.\n\nFilename: ' + fileName + '\nType: ' + (fileType || 'unknown') + '\n\nTags:';
+  const result = await aivmInference(prompt, msg => console.log('[AIVM]', msg));
+  return result.split(',').map(t => t.trim().toLowerCase()).filter(t => t.length > 0 && t.length < 30).slice(0, 5);
+}
+
+async function aiTagFile() {
+  if (!canUseAI()) { closeModal('modal-tags'); openPaymentModal(); return; }
+  const f = S.catalog.find(x => x.id === _tagsTargetId);
+  if (!f) return;
+  const sugBox = el('ai-tag-suggestions');
+  sugBox.style.display = 'block';
+  sugBox.innerHTML = '<div class="loading-state" style="padding:12px;"><div class="spinner" style="width:24px;height:24px;border-width:2px;"></div><span style="font-size:12px;color:var(--muted);">Getting AI suggestions…</span></div>';
+  try {
+    const tags = await getAITags(f.name, f.type);
+    consumeFree();
+    sugBox.innerHTML = '<div style="font-size:12px;color:var(--muted);margin-bottom:6px;">Suggested (click to add):</div>' +
+      tags.map(t => '<span class="tag-pill" style="cursor:pointer;margin:2px;" onclick="addSuggestedTag(\''+esc(t)+'\')">' + esc(t) + '</span>').join('');
+  } catch(e) {
+    sugBox.innerHTML = '<div class="warn-box">AI error: ' + esc(e.message) + '</div>';
+  }
+}
+
+function addSuggestedTag(tag) {
+  if (!_currentTags.includes(tag)) { _currentTags.push(tag); renderTagsInModal(); }
+}
+
+async function aiTagSingle(fileId) {
+  if (!canUseAI()) { openPaymentModal(); return; }
+  const f = S.catalog.find(x => x.id === fileId);
+  if (!f) return;
+  toast('🤖 AI tagging ' + f.name + '…');
+  try {
+    const tags = await getAITags(f.name, f.type);
+    f.tags = [...new Set([...(f.tags||[]), ...tags])];
+    consumeFree(); saveCatalog(); renderFiles();
+    toast('✅ Tags: ' + tags.join(', '), 'ok', 4000);
+  } catch(e) {
+    toast('AI error: ' + e.message, 'err');
+  }
+}
+
+// ── DOCUMENT SUMMARY ─────────────────────────────────────────────
+function openSummaryModal() {
+  el('summary-input').value = '';
+  el('summary-result').style.display = 'none';
+  openModal('modal-summary');
+}
+
+async function doSummary() {
+  const text = el('summary-input').value.trim();
+  if (!text) { toast('Paste some document text first.', 'err'); return; }
+  if (!canUseAI()) { closeModal('modal-summary'); openPaymentModal(); return; }
+  const btn = el('btn-summarize');
+  btn.disabled = true; btn.textContent = '⏳ Summarizing…';
+  const result = el('summary-result');
+  result.style.display = 'block';
+  result.innerHTML = '<div class="loading-state" style="padding:12px;"><div class="spinner" style="width:24px;height:24px;border-width:2px;"></div><span style="font-size:12px;color:var(--muted);">AI summarizing…</span></div>';
+  try {
+    const prompt = 'Summarize the following document in plain English. Be concise and clear — 3 to 5 sentences max.\n\n---\n' + text.slice(0, 2000) + '\n---\n\nSummary:';
+    const summary = await aivmInference(prompt, msg => console.log('[AIVM]', msg));
+    consumeFree();
+    result.innerHTML = '<div class="success-box" style="white-space:pre-wrap;">' + esc(summary.trim()) + '</div>';
+  } catch(e) {
+    result.innerHTML = '<div class="warn-box">Error: ' + esc(e.message) + '</div>';
+  } finally {
+    btn.disabled = false; btn.textContent = '🤖 Summarize';
+  }
+}
+
+// ── PAGE AI CHAT (inline) ─────────────────────────────────────────
+async function sendPageAI() {
+  const input = el('page-ai-input');
+  const msg   = input.value.trim();
+  if (!msg) return;
+  if (!canUseAI()) { openPaymentModal(); return; }
+  input.value = '';
+  const msgs = el('page-ai-messages');
+  msgs.innerHTML += '<div class="ai-msg user">' + esc(msg) + '</div>';
+  const loadEl = document.createElement('div');
+  loadEl.className = 'ai-msg bot';
+  loadEl.innerHTML = '<span style="color:var(--muted);">⏳ Thinking… (~60-90s)</span>';
+  msgs.appendChild(loadEl);
+  msgs.scrollTop = msgs.scrollHeight;
+
+  const fileContext = S.catalog.length
+    ? 'The user has ' + S.catalog.length + ' files cataloged in OrcaFiles. File types: ' +
+      [...new Set(S.catalog.map(f => f.type))].slice(0,8).join(', ') + '.'
+    : 'No files loaded yet.';
+  const prompt = 'You are OrcaFiles AI, a smart file organization assistant. ' + fileContext + '\n\nUser: ' + msg + '\n\nAssistant:';
+
+  try {
+    const reply = await aivmInference(prompt, p => { loadEl.innerHTML = '<span style="color:var(--muted);">' + esc(p) + '</span>'; });
+    consumeFree();
+    loadEl.textContent = reply.trim();
+  } catch(e) {
+    loadEl.innerHTML = '<span style="color:var(--red);">Error: ' + esc(e.message) + '</span>';
+  }
+  msgs.scrollTop = msgs.scrollHeight;
+  updateWalletUI();
+}
+
+// ── FLOATING AI PANEL ─────────────────────────────────────────────
+let _aiPanelOpen = false;
+let _aiActive    = false;
+
+function toggleAIPanel() {
+  const panel = el('aiPanel');
+  _aiPanelOpen = !_aiPanelOpen;
+  panel.classList.toggle('open', _aiPanelOpen);
+  if (_aiPanelOpen && el('aiMessages').children.length === 0) {
+    addBotMsg('Hi! I\'m OrcaFiles AI. Ask me anything about your files, organization tips, or how to use OrcaFiles.');
+  }
+}
+
+function addBotMsg(text) {
+  const msgs = el('aiMessages');
+  const div  = document.createElement('div');
+  div.className = 'ai-msg bot';
+  div.textContent = text;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+  return div;
+}
+
+function addUserMsg(text) {
+  const msgs = el('aiMessages');
+  const div  = document.createElement('div');
+  div.className = 'ai-msg user';
+  div.textContent = text;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function aiInputKeydown(e) {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendAIMessage(); }
+}
+
+async function sendAIMessage() {
+  if (_aiActive) return;
+  const input = el('aiInput');
+  const sendBtn = el('aiSendBtn');
+  const msg = input.value.trim();
+  if (!msg) return;
+  if (!canUseAI()) { addBotMsg('You\'ve used your 5 free AI calls. Connect wallet and subscribe to continue.'); toggleAIPanel(); openPaymentModal(); return; }
+  const ownerMode = localStorage.getItem('orcafiles_owner') === '1';
+  if (!S.addr && !ownerMode) { addBotMsg('Please connect your Trust Wallet first — click "Connect Wallet" in the top bar.'); return; }
+
+  _aiActive = true;
+  input.disabled = true; sendBtn.disabled = true;
+  input.value = '';
+  addUserMsg(msg);
+  const loadEl = addBotMsg('⏳ Thinking… (1-2 minutes via Lightchain AIVM)');
+
+  const fileContext = S.catalog.length
+    ? 'User has ' + S.catalog.length + ' files. Types: ' + [...new Set(S.catalog.map(f => f.type))].slice(0,6).join(', ')
+    : 'No files loaded.';
+  const prompt = 'You are OrcaFiles AI. Be helpful, concise, and friendly. ' + fileContext + '\n\nUser: ' + msg + '\nAssistant:';
+
+  try {
+    const reply = await aivmInference(prompt, p => { loadEl.textContent = p; });
+    consumeFree();
+    loadEl.textContent = reply.trim();
+  } catch(e) {
+    loadEl.innerHTML = '<span style="color:var(--red);">' + esc(e.message) + '</span>';
+  } finally {
+    _aiActive = false;
+    input.disabled = false; sendBtn.disabled = false;
+    input.focus();
+  }
+  updateWalletUI();
+}
+
+// ── RESIZE AI PANEL (drag grip upper-left, same as OrcaMint) ──────
+(function() {
+  let resizing = false, startX, startY, startW, startH;
+  document.addEventListener('DOMContentLoaded', function() {
+    const handle = el('aiResizeHandle');
+    const panel  = el('aiPanel');
+    if (!handle || !panel) return;
+
+    handle.addEventListener('mousedown', function(e) {
+      resizing = true;
+      startX = e.clientX; startY = e.clientY;
+      startW = panel.offsetWidth; startH = panel.offsetHeight;
+      panel.classList.add('resizing');
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', function(e) {
+      if (!resizing) return;
+      const newW = Math.min(680, Math.max(280, startW - (e.clientX - startX)));
+      const newH = Math.min(window.innerHeight * 0.84, Math.max(300, startH - (e.clientY - startY)));
+      panel.style.width  = newW + 'px';
+      panel.style.height = newH + 'px';
+    });
+
+    document.addEventListener('mouseup', function() {
+      if (!resizing) return;
+      resizing = false;
+      panel.classList.remove('resizing');
+    });
+
+    handle.addEventListener('touchstart', function(e) {
+      const t = e.touches[0];
+      resizing = true;
+      startX = t.clientX; startY = t.clientY;
+      startW = panel.offsetWidth; startH = panel.offsetHeight;
+      e.preventDefault();
+    }, { passive: false });
+
+    document.addEventListener('touchmove', function(e) {
+      if (!resizing) return;
+      const t = e.touches[0];
+      const newW = Math.min(680, Math.max(280, startW - (t.clientX - startX)));
+      const newH = Math.min(window.innerHeight * 0.84, Math.max(300, startH - (t.clientY - startY)));
+      panel.style.width  = newW + 'px';
+      panel.style.height = newH + 'px';
+    }, { passive: false });
+
+    document.addEventListener('touchend', function() { resizing = false; });
+  });
+})();
+
+// ── PAGE NAVIGATION ───────────────────────────────────────────────
+function showPage(pageId) {
+  S.currentPage = pageId;
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const page = el('page-' + pageId);
+  if (page) page.classList.add('active');
+  const nav = document.querySelector('.nav-item[data-page="' + pageId + '"]');
+  if (nav) nav.classList.add('active');
+  if (pageId === 'files') renderFiles();
+  if (pageId === 'encrypted') renderEncryptedPage();
+  if (pageId === 'backup') updateBackupStatus();
+}
+</script>
+<script>
+'use strict';
+
+// ── WIZARD ────────────────────────────────────────────────────────
+let _wizardStep = 0;
+const WIZARD_TOTAL = 6;
+
+function wizardOptChange(input) {
+  const group = input.closest('.wizard-options');
+  if (!group) return;
+  group.querySelectorAll('.wizard-opt').forEach(opt => opt.classList.remove('selected'));
+  input.closest('.wizard-opt').classList.add('selected');
+  // Show/hide business note on step 1
+  if (input.name === 'wuse') {
+    const note = el('business-note');
+    if (note) note.style.display = input.value === 'business' ? 'block' : 'none';
+  }
+}
+
+function wizardCheckChange(input) {
+  const opt = input.closest('.wizard-opt');
+  if (input.checked) opt.classList.add('selected');
+  else opt.classList.remove('selected');
+}
+
+function wizardNext() {
+  if (_wizardStep === WIZARD_TOTAL - 1) return;
+  if (_wizardStep === 4) buildWizardSummary();
+  _wizardStep++;
+  showWizardStep(_wizardStep);
+}
+
+function wizardBack() {
+  if (_wizardStep === 0) return;
+  _wizardStep--;
+  showWizardStep(_wizardStep);
+}
+
+function showWizardStep(n) {
+  document.querySelectorAll('.wizard-step').forEach((s, i) => {
+    s.classList.toggle('active', i === n);
+  });
+  document.querySelectorAll('.wizard-dot').forEach((d, i) => {
+    d.className = 'wizard-dot' + (i < n ? ' done' : i === n ? ' active' : '');
+  });
+}
+
+function buildWizardSummary() {
+  const useVal      = document.querySelector('input[name="wuse"]:checked');
+  const privacyVal  = document.querySelector('input[name="wprivacy"]:checked');
+  const aiVal       = document.querySelector('input[name="wai"]:checked');
+  const fileTypes   = [...document.querySelectorAll('#wopts-types input:checked')].map(i => i.value);
+
+  S.wizardData = {
+    use:      useVal      ? useVal.value      : 'personal',
+    privacy:  privacyVal  ? privacyVal.value  : 'selective',
+    ai:       aiVal       ? aiVal.value       : 'yes',
+    fileTypes
+  };
+
+  const privMap = {organize:'🔵 Organize only', selective:'🟡 Encrypt sensitive files', all:'🟢 Encrypt everything'};
+  const typeMap = {docs:'Personal docs', finance:'Financial records', photos:'Photos & media', work:'Work files', medical:'Medical records', other:'Other'};
+
+  const summary = el('wizard-summary');
+  summary.innerHTML = [
+    ['Use case',    S.wizardData.use === 'business' ? '💼 Business (personal mode)' : '🏠 Personal'],
+    ['File types',  fileTypes.map(t => typeMap[t] || t).join(', ') || 'Not specified'],
+    ['Privacy',     privMap[S.wizardData.privacy] || S.wizardData.privacy],
+    ['AI features', S.wizardData.ai === 'yes' ? '🤖 Enabled (wallet required)' : '🚫 Manual only']
+  ].map(([label, val]) => `<div class="wizard-summary-row"><span class="label">${label}</span><span class="val">${esc(val)}</span></div>`).join('');
+
+  // Suggested folders based on answers
+  const folders = [];
+  if (fileTypes.includes('docs'))    folders.push('Documents');
+  if (fileTypes.includes('finance')) folders.push('Finance');
+  if (fileTypes.includes('photos'))  folders.push('Photos');
+  if (fileTypes.includes('work'))    folders.push('Work');
+  if (fileTypes.includes('medical')) folders.push('Medical');
+  if (!folders.length) folders.push('My Files');
+  el('wizard-folders').textContent = folders.join(', ');
+
+  // Apply default protection from wizard
+  const protMap = {organize: 0, selective: 1, all: 2};
+  S.settings.defaultProtection = protMap[S.wizardData.privacy] || 1;
+}
+
+function wizardFinish() {
+  localStorage.setItem(LS_WIZARD, JSON.stringify({done: true, data: S.wizardData, ts: Date.now()}));
+  el('wizard').style.display = 'none';
+  el('app').style.display = '';
+  updateWalletUI();
+  loadSettingsUI();
+  renderFiles();
+  el('ai-fab').style.display = '';
+
+  // If AI was chosen, prompt wallet connect
+  if (S.wizardData.ai === 'yes' && !S.addr) {
+    setTimeout(() => {
+      toast('👛 Connect your wallet to enable AI features — click "Connect Wallet" in the top bar.', '', 6000);
+    }, 800);
+  }
+}
+
+// ── INIT ──────────────────────────────────────────────────────────
+async function init() {
+  // Owner mode URL activation: visiting orcafiles.ai?owner=1 sets permanent Pro
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('owner') === '1') {
+    localStorage.setItem('orcafiles_owner', '1');
+    // Clean URL without reload
+    history.replaceState({}, '', window.location.pathname);
+    setTimeout(() => toast('✅ Owner mode activated — Pro plan unlocked forever.', 'ok', 4000), 1000);
+  }
+
+  loadAll();
+
+  // Check wizard
+  const wizardDone = localStorage.getItem(LS_WIZARD);
+  if (wizardDone) {
+    el('wizard').style.display = 'none';
+    el('app').style.display = '';
+    el('ai-fab').style.display = '';
+    loadSettingsUI();
+    renderFiles();
+    if (S.catalog.length > 0) showToolbar(true);
+  }
+
+  // Auto-reconnect wallet if previously connected
+  if (window.ethereum) {
+    try {
+      const accounts = await window.ethereum.request({method:'eth_accounts'});
+      if (accounts && accounts.length) {
+        const prov = new ethers.BrowserProvider(window.ethereum);
+        const sig  = await prov.getSigner();
+        S.addr     = await sig.getAddress();
+        S.provider = prov;
+        S.signer   = sig;
+      }
+    } catch(e) {}
+
+    window.ethereum.on('accountsChanged', async accs => {
+      if (!accs.length) { disconnectWallet(); }
+      else {
+        S.addr = accs[0];
+        if (S.provider) S.signer = await S.provider.getSigner();
+        updateWalletUI();
+      }
+    });
+  }
+
+  updateWalletUI();
+
+  // Check FSAPI support
+  if (!('showDirectoryPicker' in window)) {
+    const warn = el('files-unsupported');
+    if (warn) warn.style.display = 'block';
+  }
+}
+
+window.addEventListener('DOMContentLoaded', init);
+
+// ── SIDEBAR CLOCK ─────────────────────────────────────────────────
+(function startClock() {
+  function tick() {
+    const now = new Date();
+    const timeEl = document.getElementById('clock-time');
+    const dateEl = document.getElementById('clock-date');
+    if (!timeEl) return;
+    timeEl.textContent = now.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+    dateEl.textContent = now.toLocaleDateString([], {weekday:'short', month:'short', day:'numeric', year:'numeric'});
+  }
+  tick();
+  setInterval(tick, 1000);
+})();
+</script>
+</body>
+</html>
