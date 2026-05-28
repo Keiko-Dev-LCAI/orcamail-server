@@ -188,31 +188,27 @@ class AIVMClient:
             address=Web3.to_checksum_address(AIVM_JOB_REG), abi=AIVM_ABI)
         self._jwt     = None
         self._jwt_exp = 0
-        print(f"  [AIVM] wallet: {self._account.address}")
 
     def _get_jwt(self) -> str:
         from eth_account.messages import encode_defunct
         if self._jwt and time.time() < self._jwt_exp - 30:
             return self._jwt
-        print(f"  [AIVM] auth: address={self._account.address}")
         r = self._req.get(
             f"{AIVM_GATEWAY}/api/auth/challenge",
             params={"address": self._account.address}, timeout=15,
         )
-        print(f"  [AIVM] challenge status={r.status_code}")
         r.raise_for_status()
         resp_json = r.json()
         message = resp_json.get("message") or resp_json.get("nonce") or list(resp_json.values())[0]
-        print(f"  [AIVM] challenge keys={list(resp_json.keys())} msg_len={len(str(message))}")
         sig = self._account.sign_message(encode_defunct(text=message))
         sig_hex = "0x" + sig.signature.hex()
-        print(f"  [AIVM] sig v-byte={sig.signature[-1]} sig_len={len(sig_hex)}")
         r2 = self._req.post(
             f"{AIVM_GATEWAY}/api/auth/verify",
             json={"message": message, "signature": sig_hex},
             timeout=15,
         )
-        print(f"  [AIVM] verify status={r2.status_code} body={r2.text[:200]}")
+        if not r2.ok:
+            print(f"  [AIVM] auth failed: status={r2.status_code}")
         r2.raise_for_status()
         v = r2.json()
         self._jwt = v["token"]
