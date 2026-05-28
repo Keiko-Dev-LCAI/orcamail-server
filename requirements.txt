@@ -1,6 +1,6 @@
 # Core server — stdlib only
 # AIVM inference client — needed for /api/chat endpoint
-web3==6.20.3
+web3==7.6.0
 eth-account==0.13.7
 cryptography==42.0.8
 requests==2.32.3
