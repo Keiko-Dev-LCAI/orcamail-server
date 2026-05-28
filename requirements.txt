@@ -1,8 +1,7 @@
-# OrcaMail server dependencies
-# web3 / eth-account / requests / websocket-client / cryptography are used by
-# the /api/aivm proxy only.  Core OrcaMail routes use Python stdlib only.
-web3
-eth-account
-requests
-websocket-client
-cryptography
+# Core server — stdlib only
+# AIVM inference client — needed for /api/chat endpoint
+web3==6.20.3
+eth-account==0.11.3
+cryptography==42.0.8
+requests==2.32.3
+websocket-client==1.8.0
