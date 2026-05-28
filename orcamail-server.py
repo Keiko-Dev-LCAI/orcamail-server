@@ -266,8 +266,8 @@ class AIVMClient:
         r.raise_for_status()
         prep = r.json()
 
-        params_hash = bytes.fromhex(model_id.lstrip("0x").lstrip("0X").zfill(64))
-        sig_bytes   = bytes.fromhex(prep["signature"].lstrip("0x").lstrip("0X"))
+        params_hash = bytes.fromhex(model_id[2:].zfill(64) if model_id[:2].lower() == "0x" else model_id.zfill(64))
+        sig_bytes   = bytes.fromhex(prep["signature"][2:] if prep["signature"][:2].lower() == "0x" else prep["signature"])
         gas_price   = self._w3.eth.gas_price
         nonce_val   = self._w3.eth.get_transaction_count(self._account.address)
 
@@ -361,7 +361,8 @@ class AIVMClient:
         blob_hashes = r.json().get("blobHashes", [])
         if not blob_hashes:
             raise RuntimeError("No blob hash returned from gateway")
-        prompt_hash = bytes.fromhex(blob_hashes[0].lstrip("0x").lstrip("0X").zfill(64))
+        _bh = blob_hashes[0]
+        prompt_hash = bytes.fromhex(_bh[2:].zfill(64) if _bh[:2].lower() == "0x" else _bh.zfill(64))
 
         nonce_val2 = self._w3.eth.get_transaction_count(self._account.address)
         tx2 = self._registry.functions.submitJob(session_id, prompt_hash).build_transaction({
@@ -379,7 +380,7 @@ class AIVMClient:
         if receipt2.status != 1:
             raise RuntimeError("submitJob reverted — check LCAI balance")
 
-        job_completed_topic = Web3.keccak(
+        job_completed_topic = "0x" + Web3.keccak(
             text="JobCompleted(uint256,address,bytes32,bytes32)"
         ).hex()
         job_id_topic = "0x" + hex(session_id)[2:].zfill(64)
