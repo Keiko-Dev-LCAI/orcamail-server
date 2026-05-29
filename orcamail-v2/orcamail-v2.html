@@ -185,7 +185,7 @@ html,body{min-height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI
         <span class="pill">🚫 No Email Needed</span>
         <span class="pill">⚡ Instant Delivery</span>
       </div>
-      <button class="btn btn-primary btn-large" onclick="connectWallet()" id="hero-connect-btn">🐋 Connect Wallet — It's Free</button>
+      <button class="btn btn-primary btn-large" onclick="connectWallet()" id="hero-connect-btn">🔐 Connect Wallet — It's Free</button>
       <p class="landing-note">✨ Free to receive always • 5 free sends • Then $0.50/month in LCAI</p>
       <button class="btn btn-secondary btn-sm mt-2" onclick="startAsGuest()">👀 Preview Without Wallet</button>
       <div class="aivm-badge mt-2">⚡ Powered by Lightchain</div>
@@ -429,7 +429,7 @@ html,body{min-height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI
       <div style="margin-bottom:20px">
         <div style="font-size:16px;font-weight:800;color:#06b6d4;margin-bottom:12px">🚀 Getting Started</div>
         <div style="font-size:15px;color:#8eaac5;line-height:1.75">
-          Connect your MetaMask, Trust Wallet, or any EVM wallet using the <strong style="color:#dce8f5">Connect Wallet</strong> button. Once connected, tap <strong style="color:#dce8f5">Opt In</strong> — this registers your wallet so others can send you messages. Opting in is free and doesn't require a transaction.
+          Connect your Trust Wallet, or any EVM wallet using the <strong style="color:#dce8f5">Connect Wallet</strong> button. Once connected, tap <strong style="color:#dce8f5">Opt In</strong> — this registers your wallet so others can send you messages. Opting in is free and doesn't require a transaction.
         </div>
       </div>
       <div style="height:1px;background:#2e4060;margin-bottom:20px"></div>
@@ -479,7 +479,7 @@ html,body{min-height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI
     </div>
     <div class="modal-body" style="gap:0;font-size:14px;color:#8eaac5;line-height:1.75;overflow-y:auto">
 
-      <p style="font-size:11px;color:var(--text-dim);margin-bottom:20px">Last updated: June 2025 &nbsp;·&nbsp; Contact: <a href="mailto:danmimna@gmail.com" style="color:var(--teal)">danmimna@gmail.com</a></p>
+      <p style="font-size:11px;color:var(--text-dim);margin-bottom:20px">Last updated: June 2025 &nbsp;·&nbsp; Built on Lightchain by the OrcaMail team.</p>
 
       <div style="margin-bottom:18px">
         <div style="font-size:15px;font-weight:700;color:#dce8f5;margin-bottom:8px">1. What OrcaMail Is</div>
@@ -542,11 +542,6 @@ html,body{min-height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI
         <p>OrcaMail does not require or collect real-world identity information. Wallet addresses are pseudonymous identifiers. We make no attempt to link wallet addresses to real identities. However, blockchain transactions are public by nature — on-chain activity related to the OrcaMail contract is visible on the Lightchain network.</p>
       </div>
 
-      <div style="height:1px;background:var(--border);margin-bottom:18px"></div>
-      <div style="margin-bottom:4px">
-        <div style="font-size:15px;font-weight:700;color:#dce8f5;margin-bottom:8px">10. Contact</div>
-        <p>Questions about this Privacy Policy? Email <a href="mailto:danmimna@gmail.com" style="color:var(--teal)">danmimna@gmail.com</a>.</p>
-      </div>
 
     </div>
     <div class="modal-footer">
@@ -557,6 +552,12 @@ html,body{min-height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI
 
 <div id="toast"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
+<script type="module">
+  try {
+    const { EthereumProvider } = await import('https://esm.sh/@walletconnect/ethereum-provider@2.17.3');
+    window.WCEthereumProvider = EthereumProvider;
+  } catch(e) { console.warn('WalletConnect unavailable:', e); }
+</script>
 <script>
 'use strict';
 
@@ -612,20 +613,43 @@ async function apiPost(path,body){
 }
 
 // ── Wallet ────────────────────────────────────────────────────────────────
+let _wcProv=null;
+
 async function connectWallet(){
   const btn=el('hero-connect-btn'),btn2=el('nav-connect-btn');
   if(btn){btn.textContent='Connecting...';}
   try{
-    if(!window.ethereum) throw new Error('No wallet found. Please install MetaMask or Trust Wallet.');
-    const prov=new ethers.BrowserProvider(window.ethereum);
+    let rawProvider;
+    if(window.ethereum){
+      rawProvider=window.ethereum;
+    } else if(window.WCEthereumProvider){
+      _wcProv=await window.WCEthereumProvider.init({
+        projectId:'3c6a0da53258912a28923198ddac3333',
+        chains:[1],
+        optionalChains:[9200],
+        showQrModal:true,
+        metadata:{
+          name:'OrcaMail',
+          description:'Wallet-to-Wallet Encrypted Messaging on Lightchain',
+          url:'https://orcamail.ai',
+          icons:['https://orcamail.ai/orcamail-logo.png']
+        },
+        rpcMap:{9200:'https://rpc.lightchain.ai'}
+      });
+      await _wcProv.enable();
+      rawProvider=_wcProv;
+    } else {
+      throw new Error('No wallet found. Open this site in your wallet\'s built-in browser, or use a browser with a Web3 extension.');
+    }
+    const prov=new ethers.BrowserProvider(rawProvider);
     await prov.send('eth_requestAccounts',[]);
     const sig=await prov.getSigner();
     S.addr=await sig.getAddress();
     S.provider=prov;S.signer=sig;
-    if(btn){btn.innerHTML='🐋 Connect Wallet — It\'s Free';}
+    if(btn){btn.innerHTML='🔐 Connect Wallet — It\'s Free';}
     afterConnect();
   } catch(e){
-    if(btn){btn.innerHTML='🐋 Connect Wallet — It\'s Free';}
+    if(btn){btn.innerHTML='🔐 Connect Wallet — It\'s Free';}
     toast(e.message||'Connection failed',true);
   }
 }
@@ -657,6 +681,7 @@ function goLanding(){
 }
 
 function disconnectWallet(){
+  if(_wcProv){try{_wcProv.disconnect();}catch{}_wcProv=null;}
   S.addr=null;S.provider=null;S.signer=null;S.messages=[];S._signingKey=null;
   el('app').style.display='none';
   el('landing').style.display='flex';
@@ -1037,5 +1062,21 @@ function esc(s){
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
 </script>
+
+<!-- ── ORCA POD STRIP ── -->
+<div style="margin:0 auto 0;padding:12px 20px 20px;max-width:900px;">
+  <div style="background:#0f1526;border:1px solid #1e2d4a;border-radius:12px;padding:12px 16px;">
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:#7a8499;margin-bottom:10px;">🐬 More Apps from the Orca Pod</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;">
+    <a href="https://orcalearn.ai" target="_blank" style="background:#0f1526;border:1px solid #1e2d4a;border-radius:8px;padding:5px 11px;font-size:12px;color:#e8eaf0;text-decoration:none;white-space:nowrap;transition:all .2s;" onmouseover="this.style.borderColor='#00d4ff';this.style.color='#00d4ff'" onmouseout="this.style.borderColor='#1e2d4a';this.style.color='#e8eaf0'">OrcaLearn 📖</a>
+    <a href="https://orcafiles.ai" target="_blank" style="background:#0f1526;border:1px solid #1e2d4a;border-radius:8px;padding:5px 11px;font-size:12px;color:#e8eaf0;text-decoration:none;white-space:nowrap;transition:all .2s;" onmouseover="this.style.borderColor='#00d4ff';this.style.color='#00d4ff'" onmouseout="this.style.borderColor='#1e2d4a';this.style.color='#e8eaf0'">OrcaFiles 📁</a>
+    <a href="https://keiko-dev-lcai.github.io/orcaguard/" target="_blank" style="background:#0f1526;border:1px solid #1e2d4a;border-radius:8px;padding:5px 11px;font-size:12px;color:#e8eaf0;text-decoration:none;white-space:nowrap;transition:all .2s;" onmouseover="this.style.borderColor='#00d4ff';this.style.color='#00d4ff'" onmouseout="this.style.borderColor='#1e2d4a';this.style.color='#e8eaf0'">OrcaGuard 🛡️</a>
+    <a href="https://orcamint.xyz" target="_blank" style="background:#0f1526;border:1px solid #1e2d4a;border-radius:8px;padding:5px 11px;font-size:12px;color:#e8eaf0;text-decoration:none;white-space:nowrap;transition:all .2s;" onmouseover="this.style.borderColor='#00d4ff';this.style.color='#00d4ff'" onmouseout="this.style.borderColor='#1e2d4a';this.style.color='#e8eaf0'">OrcaMint 🎨</a>
+    <a href="https://smartcontractexplainer.xyz" target="_blank" style="background:#0f1526;border:1px solid #1e2d4a;border-radius:8px;padding:5px 11px;font-size:12px;color:#e8eaf0;text-decoration:none;white-space:nowrap;transition:all .2s;" onmouseover="this.style.borderColor='#00d4ff';this.style.color='#00d4ff'" onmouseout="this.style.borderColor='#1e2d4a';this.style.color='#e8eaf0'">Contract Explainer 🔍</a>
+    <a href="https://keiko-dev-lcai.github.io/orcanode" target="_blank" style="background:#0f1526;border:1px solid #1e2d4a;border-radius:8px;padding:5px 11px;font-size:12px;color:#e8eaf0;text-decoration:none;white-space:nowrap;transition:all .2s;" onmouseover="this.style.borderColor='#00d4ff';this.style.color='#00d4ff'" onmouseout="this.style.borderColor='#1e2d4a';this.style.color='#e8eaf0'">Node Builder ⚡</a>
+    <a href="https://keiko-dev-lcai.github.io/orcaappbuilder/" target="_blank" style="background:#0f1526;border:1px solid #1e2d4a;border-radius:8px;padding:5px 11px;font-size:12px;color:#e8eaf0;text-decoration:none;white-space:nowrap;transition:all .2s;" onmouseover="this.style.borderColor='#00d4ff';this.style.color='#00d4ff'" onmouseout="this.style.borderColor='#1e2d4a';this.style.color='#e8eaf0'">OrcaAppBuilder 🛠️</a>
+    </div>
+  </div>
+</div>
 </body>
 </html>
