@@ -1,0 +1,14 @@
+# Exclude everything by default — OrcaMail + OrcaFiles + OrcaMint all served from one Railway server
+*
+!orcamail-server.py
+!orcamail-v2/
+!orcamail-v2/**
+!orcafiles-app/
+!orcafiles-app/**
+!orcamint-app/
+!orcamint-app/**
+!orcamail-logo.png
+!orcamail-icon.png
+!requirements.txt
+!Procfile
+!railway.toml

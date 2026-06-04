@@ -1,0 +1,17 @@
+[Unit]
+Description=OrcaMail Backend Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=keiko
+WorkingDirectory=/home/keiko
+ExecStart=/usr/bin/python3 /home/keiko/Desktop/orcamail-server.py
+Restart=always
+RestartSec=10
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Install]
+WantedBy=multi-user.target
