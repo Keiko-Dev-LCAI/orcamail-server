@@ -55,7 +55,7 @@ PUBKEYS_FILE      = os.path.join(DATA_DIR, "orcamail-pubkeys.json")  # address �
 OPTINS_FILE       = os.path.join(DATA_DIR, "orcamail-optins.json")   # address → {preferences, ts} (server-side fallback)
 SENDS_FILE        = os.path.join(DATA_DIR, "orcamail-sends.json")    # address → {sends_used, sub_expiry}
 FREE_SENDS_LIMIT  = 5
-FRONTEND_FILE     = os.path.join(os.path.dirname(os.path.abspath(__file__)), "orcamail-v2", "orcamail-v2.html")
+FRONTEND_FILE     = os.path.join(os.path.dirname(os.path.abspath(__file__)), "orcamail-v2.html")
 ORCAFILES_FILE    = os.path.join(os.path.dirname(os.path.abspath(__file__)), "orcafiles-app", "index.html")
 ORCAMINT_FILE     = os.path.join(os.path.dirname(os.path.abspath(__file__)), "orcamint-app", "index.html")
 # SMTP — set as Railway env vars (never hard-code credentials)
