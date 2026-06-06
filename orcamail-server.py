@@ -64,6 +64,9 @@ SMTP_PORT         = int(os.environ.get("SMTP_PORT", 587))
 SMTP_USER         = os.environ.get("SMTP_USER", "")        # e.g. "orcamail@gmail.com"
 SMTP_PASS         = os.environ.get("SMTP_PASS", "")        # app password
 NOTIFY_FROM       = os.environ.get("NOTIFY_FROM", "orcamail@orcamail.ai")
+# Auto-notify — private: stored ONLY as Railway env vars, never in code or responses
+NOTIFY_WALLET     = os.environ.get("NOTIFY_WALLET", "").lower().strip()  # wallet to watch for new messages
+NOTIFY_EMAIL      = os.environ.get("NOTIFY_EMAIL", "")                   # private email to notify — NEVER expose
 
 SERVER_START_TIME = int(time.time())
 
@@ -674,10 +677,17 @@ def query_subscription(address: str) -> dict:
 # EMAIL NOTIFICATION
 # ════════════════════════════════════════════════════════════════════════════
 
+def _mask_email(email: str) -> str:
+    """Mask email for logs: dan***@gmail.com"""
+    if "@" not in email:
+        return "***"
+    local, domain = email.split("@", 1)
+    return local[:3] + "***@" + domain
+
 def send_notify_email(to_email: str, from_wallet: str):
     """Send a one-time new-message notification email."""
     if not SMTP_HOST or not SMTP_USER or not SMTP_PASS:
-        print(f"[email] SMTP not configured — skipping notification to {to_email}")
+        print(f"[email] SMTP not configured — skipping notification")
         return
 
     try:
@@ -721,10 +731,10 @@ def send_notify_email(to_email: str, from_wallet: str):
             server.login(SMTP_USER, SMTP_PASS)
             server.sendmail(NOTIFY_FROM, to_email, msg.as_string())
 
-        print(f"[email] notification sent to {to_email}")
+        print(f"[email] notification sent to {_mask_email(to_email)}")
 
     except Exception as e:
-        print(f"[email] failed to send to {to_email}: {e}")
+        print(f"[email] failed to send to {_mask_email(to_email)}: {e}")
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -1289,6 +1299,15 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
 
         self._send_json({"messageId": message_id, "ok": True}, 201)
 
+        # Auto-notify: if message was sent to the watched wallet, fire notification
+        # NOTIFY_WALLET and NOTIFY_EMAIL are private Railway env vars — never returned to client
+        if NOTIFY_WALLET and NOTIFY_EMAIL and to_addr.lower() == NOTIFY_WALLET:
+            threading.Thread(
+                target=send_notify_email,
+                args=(NOTIFY_EMAIL, from_addr),
+                daemon=True,
+            ).start()
+
     # ── GET /api/messages (also /api/inbox/{address}) ────────────────────────
 
     def _handle_inbox(self, address: str):
@@ -1541,6 +1560,8 @@ def main():
     print(f"  Data     : {DATA_FILE}")
     print(f"  Pubkeys  : {PUBKEYS_FILE}")
     print(f"  SMTP     : {SMTP_HOST or '(not configured)'}")
+    if NOTIFY_WALLET:
+        print(f"  Notify   : watching wallet {NOTIFY_WALLET[:8]}... → {_mask_email(NOTIFY_EMAIL) if NOTIFY_EMAIL else '(no email set)'}")
     try:
         server.serve_forever()
     except KeyboardInterrupt:
