@@ -825,10 +825,15 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
 
         # ── GET /api/health ───────────────────────────────────────
         if path == "/api/health":
+            import glob as _glob
+            app_dir = os.path.dirname(os.path.abspath(__file__))
             self._send_json({
                 "status": "ok",
                 "uptime": int(time.time()) - SERVER_START_TIME,
                 "ts": int(time.time()),
+                "app_dir": app_dir,
+                "files": os.listdir(app_dir),
+                "frontend_exists": os.path.exists(FRONTEND_FILE),
             })
             return
 
