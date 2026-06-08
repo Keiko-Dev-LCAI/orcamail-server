@@ -669,7 +669,14 @@ function afterConnect(){
   el('btn-disconnect').style.display='';
   el('nav-wallet-addr').textContent=fmtAddr(S.addr);
   el('settings-wallet').textContent=S.addr;
-  showTab('inbox');
+  // If ?to= param in URL, pre-fill compose and open it
+  const _toParam=new URLSearchParams(window.location.search).get('to');
+  if(_toParam){
+    el('compose-to').value=_toParam;
+    showTab('compose');
+  } else {
+    showTab('inbox');
+  }
   loadStatus();
   loadInbox();
 }
