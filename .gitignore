@@ -1,0 +1,3 @@
+SMTP-CREDENTIALS.txt
+*.env
+.env*
