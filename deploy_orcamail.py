@@ -3,6 +3,7 @@
 OrcaMail deployment script — Lightchain mainnet (chain ID 9200)
 """
 
+import os
 import sys
 import json
 import time
@@ -11,13 +12,17 @@ import time
 sys.path.insert(0, "/tmp/pylibs")
 
 from web3 import Web3
+from eth_account import Account
 from solcx import compile_source, install_solc, get_installed_solc_versions
 
 # ─── Config ───────────────────────────────────────────────────────────────────
 RPC_URL     = "https://rpc.mainnet.lightchain.ai"
 CHAIN_ID    = 9200
-PRIVATE_KEY = (os.environ.get("PRIVATE_KEY") or os.environ.get("LIGHTCHAIN_PRIVATE_KEY") or "")  # scrubbed — use env
-DEPLOYER    = "0x729fea1d8cA343F26C4cc743a4e1898d65cE6A76"
+# NEVER hardcode keys — set in env only (export PRIVATE_KEY=0x… or LIGHTCHAIN_PRIVATE_KEY=0x…)
+PRIVATE_KEY = (os.environ.get("PRIVATE_KEY") or os.environ.get("LIGHTCHAIN_PRIVATE_KEY") or "").strip()
+if not PRIVATE_KEY or not PRIVATE_KEY.startswith("0x") or len(PRIVATE_KEY) < 66:
+    sys.exit("Missing PRIVATE_KEY (or LIGHTCHAIN_PRIVATE_KEY) env var. Never commit keys.")
+DEPLOYER    = Account.from_key(PRIVATE_KEY).address
 
 SEND_FEE    = Web3.to_wei(1,   "ether")   # 1 LCAI
 BULK_FEE    = Web3.to_wei(0.1, "ether")   # 0.1 LCAI per recipient
