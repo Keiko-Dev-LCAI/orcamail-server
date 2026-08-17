@@ -36,8 +36,6 @@ body.app-mode{height:100dvh;max-height:100dvh;overflow:hidden;}
 .landing-footer-links{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;align-items:center;margin-bottom:10px;}
 .landing-footer-link{color:var(--text-dim);font-size:12px;text-decoration:none;transition:color 0.15s;}
 .landing-footer-link:hover{color:var(--teal);}
-.landing-disclaimer-btn{background:none;border:none;color:var(--text-dim);font-size:12px;font-weight:500;cursor:pointer;padding:6px 10px;text-decoration:underline;text-underline-offset:3px;font-family:inherit;opacity:0.85;}
-.landing-disclaimer-btn:hover{color:var(--teal);opacity:1;}
 .app-legal-links{display:flex;flex-wrap:wrap;gap:12px;justify-content:center;align-items:center;}
 .app-legal-links a{color:var(--text-dim);font-size:12px;text-decoration:none;}
 .app-legal-links a:hover{color:var(--teal);}
@@ -206,13 +204,12 @@ body.app-mode{height:100dvh;max-height:100dvh;overflow:hidden;}
       <button class="btn btn-primary btn-large" onclick="connectWallet()" id="hero-connect-btn">🔐 Connect Wallet</button>
       <p class="landing-note">✨ Free to receive always • 5 free sends • Then ~$0.50/month in LCAI (min. on-chain floor)</p>
       <button class="btn btn-secondary btn-sm mt-2" onclick="startAsGuest()">👀 Preview Without Wallet</button>
-      <button type="button" class="landing-disclaimer-btn mt-2" onclick="openModal('modal-disclaimer')">⚠️ Disclaimer</button>
       <div class="aivm-badge mt-2">⚡ Built for Lightchain</div>
     </div>
   </main>
   <footer class="landing-footer">
     <div class="landing-footer-links">
-      <a href="#" onclick="openModal('modal-terms');return false;" class="landing-footer-link">📋 Terms &amp; Disclaimer</a>
+      <a href="#" onclick="openModal('modal-terms');return false;" class="landing-footer-link">📋 Terms</a>
       <a href="#" onclick="openModal('modal-privacy');return false;" class="landing-footer-link">🔐 Privacy Policy</a>
     </div>
     <div style="text-align:center;padding:14px 20px 0;border-top:1px solid rgba(255,255,255,0.07);margin-top:14px;display:flex;flex-wrap:wrap;gap:12px;justify-content:center;">
@@ -333,7 +330,7 @@ body.app-mode{height:100dvh;max-height:100dvh;overflow:hidden;}
         <button class="btn btn-danger btn-sm" onclick="disconnectWallet()">Disconnect Wallet</button>
       </div>
       <div class="app-legal-links" style="margin-top:18px">
-        <a href="#" onclick="openModal('modal-terms');return false;">📋 Terms &amp; Disclaimer</a>
+        <a href="#" onclick="openModal('modal-terms');return false;">📋 Terms</a>
         <a href="#" onclick="openModal('modal-privacy');return false;">🔐 Privacy Policy</a>
         <a href="https://hub.lightchain.ai" target="_blank" rel="noopener">🔗 Lightchain Hub</a>
         <a href="https://x.com/KeikoDevLCAI" target="_blank" rel="noopener">𝕏 Contact</a>
@@ -505,36 +502,20 @@ body.app-mode{height:100dvh;max-height:100dvh;overflow:hidden;}
   </div>
 </div>
 
-<!-- MODAL: SHORT DISCLAIMER (landing) -->
-<div id="modal-disclaimer" class="modal-overlay" style="display:none" onclick="overlayClose(event,'modal-disclaimer')">
-  <div class="modal" style="max-width:440px">
-    <div class="modal-header">
-      <h3>⚠️ Disclaimer</h3>
-      <button class="modal-close" onclick="closeModal('modal-disclaimer')">&#x2715;</button>
-    </div>
-    <div class="modal-body" style="font-size:14px;color:#8eaac5;line-height:1.7">
-      <p style="margin-bottom:12px">OrcaMail is an <strong style="color:#dce8f5">unofficial community tool</strong> — not official Lightchain infrastructure.</p>
-      <p style="margin-bottom:12px">The service may go offline temporarily or permanently at any time, without notice.</p>
-      <p style="margin-bottom:12px">Subscription payments in LCAI are <strong style="color:#dce8f5">final — no refunds</strong> under any circumstances.</p>
-      <p style="font-size:13px;color:var(--text-dim)">Provided as-is. Full details in Terms.</p>
-    </div>
-    <div class="modal-footer" style="flex-wrap:wrap;gap:8px">
-      <button class="btn btn-secondary" onclick="closeModal('modal-disclaimer');openModal('modal-terms')">📋 Full Terms</button>
-      <button class="btn btn-primary" onclick="closeModal('modal-disclaimer')">Got it</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL: TERMS & DISCLAIMER -->
+<!-- MODAL: TERMS -->
 <div id="modal-terms" class="modal-overlay" style="display:none" onclick="overlayClose(event,'modal-terms')">
   <div class="modal" style="max-width:640px;max-height:92vh">
     <div class="modal-header">
-      <h3>📋 Terms &amp; Disclaimer</h3>
+      <h3>📋 Terms</h3>
       <button class="modal-close" onclick="closeModal('modal-terms')">&#x2715;</button>
     </div>
     <div class="modal-body" style="gap:0;font-size:14px;color:#8eaac5;line-height:1.75;overflow-y:auto">
 
-      <p style="font-size:11px;color:var(--text-dim);margin-bottom:20px">Last updated: August 2026 &nbsp;·&nbsp; OrcaMail — Built for Lightchain · Unofficial community tool</p>
+      <p style="font-size:11px;color:var(--text-dim);margin-bottom:14px">Last updated: August 2026 &nbsp;·&nbsp; OrcaMail — Built for Lightchain · Unofficial community tool</p>
+
+      <div style="margin-bottom:18px;padding:12px 14px;border-radius:10px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.22);color:#fcd34d;font-size:13px;line-height:1.55">
+        Unofficial community tool — not official Lightchain infrastructure. May go offline at any time without notice. LCAI payments are final — <strong style="color:#fde68a">no refunds</strong>. Provided as-is.
+      </div>
 
       <div style="margin-bottom:18px">
         <div style="font-size:15px;font-weight:700;color:#dce8f5;margin-bottom:8px">1. What OrcaMail Is</div>
