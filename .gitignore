@@ -1,3 +1,11 @@
 SMTP-CREDENTIALS.txt
 *.env
 .env*
+*.pem
+*.key
+**/keystore*
+.DS_Store
+__pycache__/
+*.pyc
+orcamail-v2.html.bak*
+STATUS.md

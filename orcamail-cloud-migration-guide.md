@@ -71,10 +71,10 @@ If you have SMTP email notifications configured, also add:
 
 | Variable Name | Value |
 |---|---|
-| `SMTP_HOST` | e.g. `smtp.gmail.com` |
+| `SMTP_HOST` | SMTP host if using optional notify (optional) |
 | `SMTP_PORT` | `587` |
-| `SMTP_USER` | your Gmail address |
-| `SMTP_PASS` | your Gmail app password |
+| `SMTP_USER` | SMTP username (env only — never commit) |
+| `SMTP_PASS` | SMTP password (env only — never commit) |
 
 👉 After adding all variables, Railway will automatically redeploy. Wait for the green **"Active"** badge.
 
@@ -203,7 +203,7 @@ sudo systemctl stop orcamail-server
 sudo systemctl disable orcamail-server
 ```
 
-This stops the server on your Lenovo Legion. Your data is now entirely off your personal machine. 🎉
+This stops any local server process. Data lives on the cloud volume only.
 
 ---
 

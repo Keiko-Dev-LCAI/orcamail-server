@@ -192,21 +192,21 @@ body.app-mode{height:100dvh;max-height:100dvh;overflow:hidden;}
   <main class="landing-hero">
     <div class="hero-inner">
       <img src="orca.gif" class="hero-logo" alt="OrcaMail" onerror="this.src='orcamail-logo.png'">
-      <h1 class="landing-title">Private Messaging,<br><span class="title-gradient">On-Chain</span></h1>
-      <p class="landing-subtitle">Wallet-to-wallet encrypted messages on Lightchain. Only the recipient can read what you send — not even the network can see inside.</p>
+      <h1 class="landing-title">Private Messaging,<br><span class="title-gradient">Wallet to Wallet</span></h1>
+      <p class="landing-subtitle">Encrypted messages between Lightchain wallets. Content is encrypted on your device — only the recipient can read it. Identity and subscriptions use Lightchain; message delivery is via the OrcaMail service.</p>
       <div class="landing-pills">
         <span class="pill">🔒 End-to-End Encrypted</span>
-        <span class="pill">💡⛓️ On Lightchain</span>
+        <span class="pill">💡⛓️ Lightchain Network</span>
         <span class="pill">📬 Free to Receive</span>
-        <span class="pill">🐋 Any EVM Wallet</span>
+        <span class="pill">🐋 Lightchain Wallets</span>
         <span class="pill">🚫 No Email Needed</span>
-        <span class="pill">⚡ Instant Delivery</span>
+        <span class="pill">⚡ Fast Delivery</span>
       </div>
-      <button class="btn btn-primary btn-large" onclick="connectWallet()" id="hero-connect-btn">🔐 Connect Wallet — It's Free</button>
-      <p class="landing-note">✨ Free to receive always • 5 free sends • Then $0.50/month in LCAI</p>
-      <div class="landing-disclaimer">⚠️ OrcaMail may go offline temporarily or permanently at any time, without notice. Subscription payments in LCAI are final — <strong>no refunds</strong> under any circumstances.</div>
+      <button class="btn btn-primary btn-large" onclick="connectWallet()" id="hero-connect-btn">🔐 Connect Wallet</button>
+      <p class="landing-note">✨ Free to receive always • 5 free sends • Then ~$0.50/month in LCAI (min. on-chain floor)</p>
+      <div class="landing-disclaimer">⚠️ Community tool — not official Lightchain infrastructure. May go offline temporarily or permanently without notice. LCAI payments are final — <strong>no refunds</strong>. Unofficial / as-is.</div>
       <button class="btn btn-secondary btn-sm mt-2" onclick="startAsGuest()">👀 Preview Without Wallet</button>
-      <div class="aivm-badge mt-2">⚡ Powered by Lightchain</div>
+      <div class="aivm-badge mt-2">⚡ Built for Lightchain</div>
     </div>
   </main>
   <footer class="landing-footer">
@@ -214,10 +214,11 @@ body.app-mode{height:100dvh;max-height:100dvh;overflow:hidden;}
       <a href="#" onclick="openModal('modal-terms');return false;" class="landing-footer-link">📋 Terms &amp; Disclaimer</a>
       <a href="#" onclick="openModal('modal-privacy');return false;" class="landing-footer-link">🔐 Privacy Policy</a>
     </div>
-    <div style="text-align:center;padding:14px 20px 0;border-top:1px solid rgba(255,255,255,0.07);margin-top:14px;">
-      <a href="https://keiko-dev-lcai.github.io/orcapod/" target="_blank" style="color:#7ec8e3;font-size:13px;text-decoration:none;font-weight:600;letter-spacing:.02em;">🐬 Other Orca dApps →</a>
+    <div style="text-align:center;padding:14px 20px 0;border-top:1px solid rgba(255,255,255,0.07);margin-top:14px;display:flex;flex-wrap:wrap;gap:12px;justify-content:center;">
+      <a href="https://hub.lightchain.ai" target="_blank" rel="noopener" style="color:#7ec8e3;font-size:13px;text-decoration:none;font-weight:600;">🔗 Lightchain Hub</a>
+      <a href="https://keiko-dev-lcai.github.io/orcapod/" target="_blank" rel="noopener" style="color:#7ec8e3;font-size:13px;text-decoration:none;font-weight:600;">🐬 Orca dApps</a>
     </div>
-    <div style="text-align:center;padding:6px 16px 0;font-size:13px;opacity:0.65;"><a href="https://x.com/KeikoDevLCAI" target="_blank" rel="noopener" style="color:#9b7fe8;text-decoration:none;font-weight:600;">𝕏 @KeikoDevLCAI</a></div>
+    <div style="text-align:center;padding:6px 16px 0;font-size:13px;opacity:0.65;"><a href="https://x.com/KeikoDevLCAI" target="_blank" rel="noopener" style="color:#9b7fe8;text-decoration:none;font-weight:600;">Contact · 𝕏 @KeikoDevLCAI</a></div>
     <div style="text-align:center;padding:4px 16px 12px;font-size:13px;opacity:0.75;"><a href="https://lightdex.app/" target="_blank" rel="noopener" style="color:#7ec8e3;text-decoration:none;font-weight:600;">Get LCAI · LCAI Swap ↗</a></div>
     <div class="keiko-android-install" style="border-top:none;background:transparent;">
       <a href="OrcaMail.apk" download>📲 Download Android App</a>
@@ -277,7 +278,7 @@ body.app-mode{height:100dvh;max-height:100dvh;overflow:hidden;}
           <textarea id="compose-body" class="form-textarea" placeholder="Write your message here..." oninput="updateCharCount()"></textarea>
           <div class="char-count"><span id="char-count">0</span> / 2000 characters</div>
         </div>
-        <div class="encrypt-badge">🔒 Encrypted end-to-end — only the recipient can read this</div>
+        <div class="encrypt-badge">🔒 Subject + body encrypted end-to-end — only the recipient can read them</div>
         <div id="compose-sends-left" class="text-muted"></div>
         <button class="btn btn-primary" style="padding:15px;font-size:16px" onclick="sendMessage()">📤 Send Encrypted Message</button>
       </div>
@@ -308,7 +309,7 @@ body.app-mode{height:100dvh;max-height:100dvh;overflow:hidden;}
             <div class="settings-label">Subscription</div>
             <div class="settings-sub" id="settings-sub-status">Checking...</div>
           </div>
-          <button class="btn btn-primary btn-sm" onclick="openModal('modal-payment')" id="btn-subscribe" style="display:none">Subscribe</button>
+          <button class="btn btn-primary btn-sm" onclick="openPaymentModal()" id="btn-subscribe" style="display:none">Subscribe</button>
         </div>
         <div class="settings-row">
           <div>
@@ -333,6 +334,8 @@ body.app-mode{height:100dvh;max-height:100dvh;overflow:hidden;}
       <div class="app-legal-links" style="margin-top:18px">
         <a href="#" onclick="openModal('modal-terms');return false;">📋 Terms &amp; Disclaimer</a>
         <a href="#" onclick="openModal('modal-privacy');return false;">🔐 Privacy Policy</a>
+        <a href="https://hub.lightchain.ai" target="_blank" rel="noopener">🔗 Lightchain Hub</a>
+        <a href="https://x.com/KeikoDevLCAI" target="_blank" rel="noopener">𝕏 Contact</a>
       </div>
     </div>
   </div>
@@ -386,17 +389,17 @@ body.app-mode{height:100dvh;max-height:100dvh;overflow:hidden;}
       <button class="modal-close" onclick="closeModal('modal-payment')">&#x2715;</button>
     </div>
     <div class="modal-body">
-      <div class="info-box">Unlock unlimited sending for 30 days. Price is calculated in LCAI based on live exchange rate (~$0.50 USD).</div>
+      <div class="info-box">Unlock unlimited sending for 30 days. Amount is the greater of ~$0.50 USD in LCAI (live rate + small buffer) and the on-chain minimum floor.</div>
       <div style="text-align:center;padding:20px 0">
         <div style="font-size:48px;font-weight:900;color:var(--teal)" id="pay-lcai-amount">—</div>
         <div style="font-size:14px;color:var(--text-muted);margin-top:6px">LCAI for 30 days unlimited sending</div>
-        <div style="font-size:13px;color:var(--text-muted);margin-top:4px">≈ $0.50 USD at current price</div>
+        <div style="font-size:13px;color:var(--text-muted);margin-top:4px" id="pay-lcai-note">Loading price…</div>
       </div>
-      <div class="warn-box">Your wallet will prompt you to approve a transaction on Lightchain (chain ID 9200). Make sure you're on the right network. <strong>All LCAI payments are final — no refunds.</strong> The service may go down temporarily or permanently at any time.</div>
+      <div class="warn-box">Your wallet will call <strong>subscribe()</strong> on Lightchain (chain ID 9200). Use the correct network. <strong>All LCAI payments are final — no refunds.</strong> Service may stop at any time. Unofficial community tool.</div>
     </div>
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="closeModal('modal-payment')">Cancel</button>
-      <button class="btn btn-primary" onclick="paySubscription()">⚡ Pay with LCAI</button>
+      <button class="btn btn-primary" id="btn-pay-lcai" onclick="paySubscription()">⚡ Pay with LCAI</button>
     </div>
   </div>
 </div>
@@ -454,7 +457,7 @@ body.app-mode{height:100dvh;max-height:100dvh;overflow:hidden;}
 
       <div style="background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.22);border-radius:12px;padding:18px 20px;margin-bottom:20px">
         <div style="font-size:17px;font-weight:800;color:#dce8f5;margin-bottom:8px">🐬 Welcome to OrcaMail</div>
-        <div style="font-size:15px;color:#8eaac5;line-height:1.7">OrcaMail lets you send private, encrypted messages between crypto wallets on Lightchain. Only the recipient can read your message — not the server, not the network, nobody else.</div>
+        <div style="font-size:15px;color:#8eaac5;line-height:1.7">OrcaMail lets you send private, encrypted messages between Lightchain wallets. Subject and body are encrypted on your device — only the recipient can read them. Delivery uses the OrcaMail service; subscriptions use the Lightchain contract.</div>
       </div>
 
       <div style="margin-bottom:20px">
@@ -477,7 +480,7 @@ body.app-mode{height:100dvh;max-height:100dvh;overflow:hidden;}
         <div style="font-size:16px;font-weight:800;color:#06b6d4;margin-bottom:12px">📤 Sending Messages</div>
         <div style="font-size:15px;color:#8eaac5;line-height:1.75">
           Go to the <strong style="color:#dce8f5">Compose</strong> tab. Enter the recipient's wallet address (0x...), a subject, and your message. Tap <strong style="color:#dce8f5">Send Encrypted Message</strong> — OrcaMail encrypts it so only the recipient can read it, then delivers it.<br><br>
-          You get <strong style="color:#dce8f5">5 free sends</strong> after connecting. After that, a subscription of <strong style="color:#dce8f5">$0.50/month in LCAI</strong> unlocks unlimited sending for 30 days.
+          You get <strong style="color:#dce8f5">5 free sends</strong> after connecting. After that, a subscription of about <strong style="color:#dce8f5">$0.50/month in LCAI</strong> (never below the on-chain minimum) unlocks unlimited sending for 30 days.
         </div>
       </div>
       <div style="height:1px;background:#2e4060;margin-bottom:20px"></div>
@@ -485,14 +488,14 @@ body.app-mode{height:100dvh;max-height:100dvh;overflow:hidden;}
       <div style="margin-bottom:20px">
         <div style="font-size:16px;font-weight:800;color:#06b6d4;margin-bottom:12px">💳 Subscribing</div>
         <div style="font-size:15px;color:#8eaac5;line-height:1.75">
-          After your 5 free sends, go to <strong style="color:#dce8f5">Settings</strong> and tap <strong style="color:#dce8f5">Subscribe</strong>. The app calculates the current LCAI price automatically so you always pay exactly ~$0.50 USD. Approve the transaction in your wallet — subscription is active instantly once confirmed.
+          After your 5 free sends, go to <strong style="color:#dce8f5">Settings</strong> and tap <strong style="color:#dce8f5">Subscribe</strong>. The app prices ~$0.50 USD in LCAI (live rate), but never below the contract minimum. Approve <strong style="color:#dce8f5">subscribe()</strong> on Lightchain — active once confirmed.
         </div>
       </div>
       <div style="height:1px;background:#2e4060;margin-bottom:20px"></div>
 
       <div style="background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.2);border-radius:12px;padding:16px 18px">
         <div style="font-size:15px;font-weight:800;color:#6ee7b7;margin-bottom:6px">🔒 Your Privacy</div>
-        <div style="font-size:14px;color:#8eaac5;line-height:1.7">All messages are encrypted with <strong style="color:#dce8f5">ECIES</strong> (the same cryptography as Ethereum) before they leave your device. The server stores only encrypted data — it cannot read your messages. Your wallet address is needed to route delivery, but message content is private.</div>
+        <div style="font-size:14px;color:#8eaac5;line-height:1.7">Subject and body are encrypted with <strong style="color:#dce8f5">ECIES</strong> before they leave your device. The server stores ciphertext and routing addresses only — it cannot read content. Wallet addresses are public identifiers used for delivery.</div>
       </div>
     </div>
     <div class="modal-footer">
@@ -510,17 +513,17 @@ body.app-mode{height:100dvh;max-height:100dvh;overflow:hidden;}
     </div>
     <div class="modal-body" style="gap:0;font-size:14px;color:#8eaac5;line-height:1.75;overflow-y:auto">
 
-      <p style="font-size:11px;color:var(--text-dim);margin-bottom:20px">Last updated: July 2026 &nbsp;·&nbsp; OrcaMail — Built on Lightchain</p>
+      <p style="font-size:11px;color:var(--text-dim);margin-bottom:20px">Last updated: August 2026 &nbsp;·&nbsp; OrcaMail — Built for Lightchain · Unofficial community tool</p>
 
       <div style="margin-bottom:18px">
         <div style="font-size:15px;font-weight:700;color:#dce8f5;margin-bottom:8px">1. What OrcaMail Is</div>
-        <p>OrcaMail is a wallet-to-wallet encrypted messaging service built on the Lightchain blockchain. It is operated by an individual developer and provided as-is for the benefit of the Lightchain community. It is not a commercial email provider, telecommunications service, or regulated financial institution.</p>
+        <p>OrcaMail is a wallet-to-wallet encrypted messaging service for the Lightchain ecosystem. It is an unofficial community tool operated independently and provided as-is. It is not official Lightchain infrastructure, not a commercial email provider, and not a regulated financial institution. Message bodies are delivered via the OrcaMail service as encrypted blobs; subscription payments settle on Lightchain.</p>
       </div>
 
       <div style="height:1px;background:var(--border);margin-bottom:18px"></div>
       <div style="margin-bottom:18px">
         <div style="font-size:15px;font-weight:700;color:#dce8f5;margin-bottom:8px">2. Payments &amp; No Refunds</div>
-        <p>After your free sends are used, unlimited sending requires a subscription paid in LCAI on the Lightchain blockchain. All on-chain transactions are <strong style="color:#dce8f5">final and irreversible</strong>. <strong style="color:#dce8f5;">No refunds will be issued under any circumstances</strong>, including but not limited to: service interruptions or outages, accidental payment, duplicate payment, dissatisfaction with the service, lost messages, encryption errors, or permanent discontinuation of OrcaMail. By making a payment you acknowledge and accept this policy.</p>
+        <p>After free sends are used, unlimited sending requires a subscription paid in LCAI via the OrcaMail <strong style="color:#dce8f5">subscribe()</strong> function on Lightchain. The amount is approximately $0.50 USD in LCAI but will never be below the on-chain minimum floor. All on-chain transactions are <strong style="color:#dce8f5">final and irreversible</strong>. <strong style="color:#dce8f5;">No refunds</strong> under any circumstances, including outages, accidental payment, lost messages, or discontinuation. By paying you accept this policy.</p>
       </div>
 
       <div style="height:1px;background:var(--border);margin-bottom:18px"></div>
@@ -563,7 +566,7 @@ body.app-mode{height:100dvh;max-height:100dvh;overflow:hidden;}
     </div>
     <div class="modal-body" style="gap:0;font-size:14px;color:#8eaac5;line-height:1.75;overflow-y:auto">
 
-      <p style="font-size:11px;color:var(--text-dim);margin-bottom:20px">Last updated: June 2025 &nbsp;·&nbsp; Built on Lightchain by the OrcaMail team.</p>
+      <p style="font-size:11px;color:var(--text-dim);margin-bottom:20px">Last updated: August 2026 &nbsp;·&nbsp; Built for Lightchain · Unofficial community tool · KeikoDev</p>
 
       <div style="margin-bottom:18px">
         <div style="font-size:15px;font-weight:700;color:#dce8f5;margin-bottom:8px">1. What OrcaMail Is</div>
@@ -576,18 +579,19 @@ body.app-mode{height:100dvh;max-height:100dvh;overflow:hidden;}
         <p style="margin-bottom:10px">When you use OrcaMail, the following data is stored on our server:</p>
         <ul style="list-style:disc;padding-left:20px;display:flex;flex-direction:column;gap:6px">
           <li><strong style="color:#dce8f5">Wallet addresses</strong> — your Ethereum-compatible public address, used to route messages to your inbox. Wallet addresses are pseudonymous and are not linked to your real-world identity by this service.</li>
-          <li><strong style="color:#dce8f5">Encrypted message blobs</strong> — the ciphertext of messages sent to you. These are encrypted client-side using ECIES (secp256k1 ECDH + AES-256-GCM) before they reach our server. We cannot decrypt or read your messages.</li>
-          <li><strong style="color:#dce8f5">Public keys</strong> — your secp256k1 public key, submitted when you opt in, so senders can encrypt messages to you. This key is derived from your wallet and is not a private key.</li>
-          <li><strong style="color:#dce8f5">Opt-in preferences</strong> — whether you have opted in to receive messages and any notification preferences you set.</li>
-          <li><strong style="color:#dce8f5">Send counts</strong> — a per-address counter tracking how many messages you have sent, used to enforce the free-send limit.</li>
+          <li><strong style="color:#dce8f5">Encrypted message blobs</strong> — ciphertext of subject + body (ECIES). We cannot decrypt message content.</li>
+          <li><strong style="color:#dce8f5">Public keys</strong> — secp256k1 public key from opt-in (not a private key).</li>
+          <li><strong style="color:#dce8f5">Opt-in records</strong> — whether your wallet is registered to receive mail.</li>
+          <li><strong style="color:#dce8f5">Send counts</strong> — free-tier counters per wallet address.</li>
+          <li><strong style="color:#dce8f5">Auth signatures</strong> — short-lived signed messages used to prove wallet control for send/opt-in/opt-out (not stored long-term as identity documents).</li>
         </ul>
-        <p style="margin-top:10px">We do <strong style="color:#dce8f5">not</strong> collect your name, email address, IP address logs, or any off-chain identity information.</p>
+        <p style="margin-top:10px">We do <strong style="color:#dce8f5">not</strong> collect your legal name, phone number, or personal email. Hosting providers may process standard technical metadata (e.g. IP addresses in access logs) under their own terms — we do not use that for marketing or identity profiling.</p>
       </div>
 
       <div style="height:1px;background:var(--border);margin-bottom:18px"></div>
       <div style="margin-bottom:18px">
         <div style="font-size:15px;font-weight:700;color:#dce8f5;margin-bottom:8px">3. End-to-End Encryption</div>
-        <p>All message content is encrypted <strong style="color:#dce8f5">on your device</strong> using ECIES encryption before being transmitted to our server. The server stores only the encrypted ciphertext and cannot read the contents of any message. Only the recipient, using their wallet's private key, can decrypt messages. The operator of this service has no ability to access message content.</p>
+        <p>Subject and body are encrypted <strong style="color:#dce8f5">on your device</strong> with ECIES before upload. The server stores ciphertext and cannot read content. Only the recipient can decrypt. From/to wallet addresses are visible for routing (they are not secret on a public chain ecosystem).</p>
       </div>
 
       <div style="height:1px;background:var(--border);margin-bottom:18px"></div>
@@ -636,6 +640,12 @@ body.app-mode{height:100dvh;max-height:100dvh;overflow:hidden;}
       <div style="margin-bottom:18px">
         <div style="font-size:15px;font-weight:700;color:#dce8f5;margin-bottom:8px">11. Service Availability</div>
         <p>OrcaMail may be modified, suspended, or permanently discontinued at any time without notice. The service may go down temporarily or permanently. The operator is under no obligation to maintain or continue operating this tool.</p>
+      </div>
+
+      <div style="height:1px;background:var(--border);margin-bottom:18px"></div>
+      <div style="margin-bottom:18px">
+        <div style="font-size:15px;font-weight:700;color:#dce8f5;margin-bottom:8px">12. Contact</div>
+        <p>For app questions, use public social only: <a href="https://x.com/KeikoDevLCAI" target="_blank" rel="noopener" style="color:var(--teal);font-weight:600;text-decoration:none;">𝕏 @KeikoDevLCAI</a>. Do not send seed phrases, private keys, or personal identity documents. There is no personal email support channel published for this app.</p>
       </div>
 
     </div>
@@ -712,7 +722,7 @@ let _wcProv=null;
 
 async function connectWallet(){
   const btn=el('hero-connect-btn'),btn2=el('nav-connect-btn');
-  if(btn){btn.textContent='Connecting...';}
+  if(btn){btn.textContent='Connecting…';}
   try{
     let rawProvider;
     if(window.ethereum){
@@ -720,16 +730,16 @@ async function connectWallet(){
     } else if(window.WCEthereumProvider){
       _wcProv=await window.WCEthereumProvider.init({
         projectId:'3c6a0da53258912a28923198ddac3333',
-        chains:[1],
+        chains:[9200],
         optionalChains:[9200],
         showQrModal:true,
         metadata:{
           name:'OrcaMail',
-          description:'Wallet-to-Wallet Encrypted Messaging on Lightchain',
+          description:'Wallet-to-wallet encrypted messaging for Lightchain',
           url:'https://orcamail.ai',
           icons:['https://orcamail.ai/orcamail-logo.png']
         },
-        rpcMap:{9200:'https://rpc.lightchain.ai'}
+        rpcMap:{9200:'https://rpc.mainnet.lightchain.ai'}
       });
       await _wcProv.enable();
       rawProvider=_wcProv;
@@ -741,10 +751,10 @@ async function connectWallet(){
     const sig=await prov.getSigner();
     S.addr=await sig.getAddress();
     S.provider=prov;S.signer=sig;
-    if(btn){btn.innerHTML='🔐 Connect Wallet — It\'s Free';}
+    if(btn){btn.innerHTML='🔐 Connect Wallet';}
     afterConnect();
   } catch(e){
-    if(btn){btn.innerHTML='🔐 Connect Wallet — It\'s Free';}
+    if(btn){btn.innerHTML='🔐 Connect Wallet';}
     toast(e.message||'Connection failed',true);
   }
 }
@@ -856,7 +866,8 @@ async function confirmOptIn(){
     const signingKey=await getMySigningKey();
     const pubkey=signingKey.publicKey; // 0x04... uncompressed
 
-    await apiPost('/optin',{address:S.addr,pubkey});
+    const auth=await signAuth('optin', pubkey);
+    await apiPost('/optin',{address:S.addr,pubkey,message:auth.message,signature:auth.signature});
     S.optedIn=true;
     toast('✅ Opted in! Others can now send you messages.');
     loadStatus();
@@ -874,7 +885,8 @@ async function doOptOut(){
   if(!S.signer){toast('Connect wallet first',true);return;}
   closeModal('modal-optout');
   try{
-    await apiPost('/optout',{address:S.addr});
+    const auth=await signAuth('optout','');
+    await apiPost('/optout',{address:S.addr,message:auth.message,signature:auth.signature});
     S.optedIn=false;
     S._signingKey=null; // clear cached key
     toast('You have opted out. New senders can no longer reach you.');
@@ -884,53 +896,136 @@ async function doOptOut(){
   }
 }
 
+async function ensureLightchainNetwork(){
+  try{
+    await S.provider.send('wallet_switchEthereumChain',[{chainId:'0x'+LCAI_CHAIN_ID.toString(16)}]);
+  }catch(e){
+    if(e.code===4902||(e.message&&e.message.includes('4902'))){
+      await S.provider.send('wallet_addEthereumChain',[{
+        chainId:'0x'+LCAI_CHAIN_ID.toString(16),
+        chainName:'Lightchain AI Mainnet',
+        nativeCurrency:{name:'LCAI',symbol:'LCAI',decimals:18},
+        rpcUrls:['https://rpc.mainnet.lightchain.ai'],
+        blockExplorerUrls:['https://mainnet.lightscan.app']
+      }]);
+    } else { throw e; }
+  }
+}
+
+async function fetchLcaiUsdPrice(){
+  let lcaiPrice=0;
+  try{
+    const pg=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=lightchain-ai&vs_currencies=usd');
+    const pj=await pg.json();
+    lcaiPrice=Number(pj['lightchain-ai']?.usd||0);
+  }catch(e){}
+  if(!(lcaiPrice>0)){
+    try{
+      const ds=await fetch('https://api.dexscreener.com/latest/dex/tokens/0x8E1De5F57e0F4DACE0bc32fEe4a9FbCe7DcF7ad1');
+      const dj=await ds.json();
+      lcaiPrice=parseFloat(dj.pairs?.[0]?.priceUsd||'0');
+    }catch(e2){}
+  }
+  return lcaiPrice>0?lcaiPrice:null;
+}
+
+async function getMinSubPriceLcai(){
+  try{
+    const d=await apiGet('/fee');
+    if(d&&d.min_sub_price_lcai)return Number(d.min_sub_price_lcai);
+  }catch(e){}
+  try{
+    const ro=new ethers.JsonRpcProvider(LCAI_RPC);
+    const c=new ethers.Contract(ORCAMAIL_CONTRACT,['function minSubPrice() view returns (uint256)'],ro);
+    const wei=await c.minSubPrice();
+    return Number(ethers.formatEther(wei));
+  }catch(e){return 100;}
+}
+
+/** Quote subscription amount: max(~$0.50 in LCAI +2%, on-chain floor) */
+async function quoteSubscriptionLcai(){
+  const floor=await getMinSubPriceLcai();
+  const price=await fetchLcaiUsdPrice();
+  let fromUsd=floor;
+  let note='';
+  if(price){
+    fromUsd=Math.ceil((SUB_USD/price)*1.02);
+    note='≈ $'+SUB_USD.toFixed(2)+' USD @ ~$'+price.toPrecision(4)+'/LCAI';
+  }else{
+    note='Live price unavailable — using on-chain minimum floor';
+  }
+  const lcaiNeeded=Math.max(fromUsd, Math.ceil(floor));
+  if(lcaiNeeded>fromUsd) note+=' · raised to contract min ('+Math.ceil(floor)+' LCAI)';
+  return {lcaiNeeded, floor, price, note};
+}
+
+async function openPaymentModal(){
+  openModal('modal-payment');
+  el('pay-lcai-amount').textContent='…';
+  const noteEl=el('pay-lcai-note');
+  if(noteEl)noteEl.textContent='Loading price…';
+  try{
+    const q=await quoteSubscriptionLcai();
+    S._quoteLcai=q.lcaiNeeded;
+    el('pay-lcai-amount').textContent=q.lcaiNeeded.toLocaleString()+' LCAI';
+    if(noteEl)noteEl.textContent=q.note;
+  }catch(e){
+    el('pay-lcai-amount').textContent='—';
+    if(noteEl)noteEl.textContent='Could not load price';
+  }
+}
+
 async function paySubscription(){
   if(!S.signer){toast('Connect wallet first',true);return;}
+  const btn=el('btn-pay-lcai');
+  if(btn){btn.disabled=true;btn.textContent='⏳ Working…';}
   try{
-    // Fetch live LCAI price for $0.50
-    let lcaiPrice=0.0001;
-    try{
-      const pg=await fetch('https://api.coingecko.com/api/v3/simple/price?ids=lightchain-ai&vs_currencies=usd');
-      const pj=await pg.json();
-      lcaiPrice=pj['lightchain-ai']?.usd||0.0001;
-    }catch(e){
-      try{
-        const ds=await fetch('https://api.dexscreener.com/latest/dex/tokens/0x8E1De5F57e0F4DACE0bc32fEe4a9FbCe7DcF7ad1');
-        const dj=await ds.json();
-        lcaiPrice=parseFloat(dj.pairs?.[0]?.priceUsd||'0.0001');
-      }catch(e2){}
-    }
-    const lcaiNeeded=Math.ceil((SUB_USD/lcaiPrice)*1.02); // 2% buffer
+    const q=await quoteSubscriptionLcai();
+    const lcaiNeeded=q.lcaiNeeded;
+    S._quoteLcai=lcaiNeeded;
     el('pay-lcai-amount').textContent=lcaiNeeded.toLocaleString()+' LCAI';
+    const noteEl=el('pay-lcai-note');
+    if(noteEl)noteEl.textContent=q.note;
 
-    // Switch to Lightchain network
+    await ensureLightchainNetwork();
+
+    // Correct contract entrypoint: subscribe() payable
+    const contract=new ethers.Contract(
+      ORCAMAIL_CONTRACT,
+      ['function subscribe() payable','function isSubscribed(address) view returns (bool)','function minSubPrice() view returns (uint256)'],
+      S.signer
+    );
+    const amountWei=ethers.parseEther(String(lcaiNeeded));
+    // Preflight: ensure value >= minSubPrice
     try{
-      await S.provider.send('wallet_switchEthereumChain',[{chainId:'0x'+LCAI_CHAIN_ID.toString(16)}]);
-    }catch(e){
-      if(e.code===4902){
-        await S.provider.send('wallet_addEthereumChain',[{
-          chainId:'0x'+LCAI_CHAIN_ID.toString(16),
-          chainName:'Lightchain AI Mainnet',
-          nativeCurrency:{name:'LCAI',symbol:'LCAI',decimals:18},
-          rpcUrls:['https://rpc.mainnet.lightchain.ai'],
-          blockExplorerUrls:['https://mainnet.lightscan.app']
-        }]);
+      const minWei=await contract.minSubPrice();
+      if(amountWei<minWei){
+        throw new Error('Amount below on-chain minimum ('+ethers.formatEther(minWei)+' LCAI). Try again.');
       }
+    }catch(e){
+      if(e.message&&e.message.includes('on-chain minimum'))throw e;
     }
-
-    // Call contract purchaseAccess()
-    const iface=new ethers.Interface(['function purchaseAccess() payable','function accessExpiry(address) view returns (uint256)']);
-    const contract=new ethers.Contract(ORCAMAIL_CONTRACT,iface,S.signer);
-    const amountWei=ethers.parseEther(lcaiNeeded.toString());
-    const tx=await contract.purchaseAccess({value:amountWei});
-    toast('⏳ Transaction sent, waiting for confirmation...',false,10000);
+    const tx=await contract.subscribe({value:amountWei});
+    toast('⏳ Transaction sent — waiting for confirmation…',false,12000);
     await tx.wait();
     toast('✅ Subscribed! Unlimited sending for 30 days.');
     closeModal('modal-payment');
     loadStatus();
   }catch(e){
-    toast(e.reason||e.message||'Payment failed',true);
+    const msg=e.reason||e.shortMessage||e.message||'Payment failed';
+    toast(msg,true,6000);
+  }finally{
+    if(btn){btn.disabled=false;btn.textContent='⚡ Pay with LCAI';}
   }
+}
+
+/** Build + sign OrcaMail auth message for mutating APIs */
+async function signAuth(action, extra=''){
+  if(!S.signer||!S.addr)throw new Error('Connect wallet first');
+  const ts=Math.floor(Date.now()/1000);
+  const message='OrcaMail|'+action+'|'+S.addr.toLowerCase()+'|'+ts+'|'+(extra||'');
+  const signature=await S.signer.signMessage(message);
+  return {message, signature, timestamp:ts};
 }
 
 // ── Inbox ─────────────────────────────────────────────────────────────────
@@ -959,7 +1054,7 @@ function renderInbox(){
         <span class="message-from">${fmtAddr(m.from)}</span>
         <span class="message-time">${fmtTime(m.timestamp)}</span>
       </div>
-      <div class="message-subject">${esc(m.subject||'(no subject)')}</div>
+      <div class="message-subject">${esc((!m.subject||m.subject==="(encrypted)")?"🔒 Encrypted message":m.subject)}</div>
       <div class="message-preview" style="color:var(--text-dim);font-style:italic">🔒 Encrypted — tap to read</div>
     </div>
   `).join('');
@@ -974,21 +1069,33 @@ async function openMessage(msgId){
   if(!msg)return;
   S.currentMsgId=msgId;
 
-  el('modal-msg-subject').textContent=msg.subject||'(no subject)';
+  el('modal-msg-subject').textContent=(msg.subject&&msg.subject!=='(encrypted)')?msg.subject:'🔒 Encrypted';
   el('modal-msg-from').textContent=msg.from;
   el('modal-msg-time').textContent=fmtTime(msg.timestamp);
   el('modal-msg-body').textContent='🔓 Decrypting...';
   openModal('modal-message');
 
   try{
-    // Decrypt the message using wallet signature
-    const body=await decryptMessage(msg.encrypted_body);
+    const plain=await decryptMessage(msg.encrypted_body);
+    let subject=msg.subject||'(no subject)';
+    let body=plain;
+    try{
+      const j=JSON.parse(plain);
+      if(j&&typeof j.b==='string'){
+        body=j.b;
+        if(typeof j.s==='string')subject=j.s;
+      }
+    }catch(_e){ /* legacy: body-only ciphertext */ }
+    el('modal-msg-subject').textContent=subject;
     el('modal-msg-body').textContent=body;
-    // Mark as read
+    msg._decryptedSubject=subject;
     if(!msg.read){
       msg.read=true;
       renderInbox();
-      apiPost('/mark-read',{address:S.addr,messageId:msgId}).catch(()=>{});
+      try{
+        const auth=await signAuth('read', msgId);
+        apiPost('/mark-read',{address:S.addr,messageId:msgId,message:auth.message,signature:auth.signature}).catch(()=>{});
+      }catch(_e){}
     }
   }catch(e){
     console.error('Decrypt error:',e);
@@ -1059,14 +1166,16 @@ function replyToMessage(){
   closeModal('modal-message');
   showTab('compose');
   el('compose-to').value=msg.from;
-  el('compose-subject').value=(msg.subject||'').startsWith('Re: ')?msg.subject:'Re: '+(msg.subject||'');
+  const subj=msg._decryptedSubject||((msg.subject&&msg.subject!=='(encrypted)')?msg.subject:'');
+  el('compose-subject').value=subj.startsWith('Re: ')?subj:('Re: '+subj);
   el('compose-body').focus();
 }
 
 async function deleteCurrentMessage(){
   if(!S.currentMsgId||!S.addr)return;
   try{
-    await apiPost('/delete',{address:S.addr,messageId:S.currentMsgId});
+    const auth=await signAuth('delete', S.currentMsgId);
+    await apiPost('/delete',{address:S.addr,messageId:S.currentMsgId,message:auth.message,signature:auth.signature});
     S.messages=S.messages.filter(m=>m.id!==S.currentMsgId);
     closeModal('modal-message');
     renderInbox();
@@ -1088,32 +1197,33 @@ async function sendMessage(){
   const body=(el('compose-body').value||'').trim();
 
   if(!to||!ethers.isAddress(to)){toast('Enter a valid wallet address',true);return;}
-  // self-send allowed for testing
   if(!body){toast('Message cannot be empty',true);return;}
   if(body.length>2000){toast('Message too long (max 2000 characters)',true);return;}
 
   if(!S.isPaid&&S.freeSendsLeft<=0){
-    openModal('modal-payment');return;
+    openPaymentModal();return;
   }
 
   const btn=document.querySelector('#tab-compose .btn-primary');
   btn.textContent='⏳ Encrypting & sending...';btn.disabled=true;
 
   try{
-    // Get recipient's pubkey from server
     const pkData=await apiGet('/pubkey?address='+to);
     if(!pkData.pubkey)throw new Error('Recipient has not opted in to OrcaMail yet. They need to connect their wallet and opt in first.');
 
-    // Encrypt message with recipient's pubkey
-    const encrypted=await encryptMessage(body,pkData.pubkey);
+    // Encrypt subject + body as JSON payload (server never sees plaintext subject)
+    const payload=JSON.stringify({s:subject||'(no subject)',b:body,v:2});
+    const encrypted=await encryptMessage(payload,pkData.pubkey);
 
-    // Send to server
+    const auth=await signAuth('send', to.toLowerCase());
     await apiPost('/send',{
       from:S.addr,
       to,
-      subject:subject||'(no subject)',
+      subject:'(encrypted)',
       encrypted_body:encrypted,
-      preview:''  // never send plaintext preview — content is private
+      preview:'',
+      message:auth.message,
+      signature:auth.signature
     });
 
     toast('✅ Message sent securely!');

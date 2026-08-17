@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
 """
 OrcaMail Backend Server
-Wallet-to-wallet encrypted messaging on Lightchain blockchain.
+Wallet-to-wallet encrypted messaging on Lightchain (chain ID 9200).
 
 Architecture:
-  - Messages are encrypted client-side with the recipient's secp256k1 public key (ECIES)
-  - Backend stores encrypted blobs — it cannot read them
-  - On-chain: payment + MailSent event via OrcaMail contract
-  - Port: 8181
+  - Messages encrypted client-side (ECIES); server stores ciphertext only
+  - Mutating APIs require wallet signature (personal_sign)
+  - Subscription checked on-chain (OrcaMail.subscribe / isSubscribed)
+  - Free-send counters tracked server-side (send path is off-chain delivery)
 
 Run:
-  python3 /home/keiko/Desktop/orcamail-server.py
-
-  Or via systemd:
-  sudo systemctl start orcamail-server
+  python3 orcamail-server.py
+  # PORT and DATA_DIR from env (Railway sets both)
 """
 
 import sys
@@ -59,14 +57,14 @@ FRONTEND_FILE     = os.path.join(os.path.dirname(os.path.abspath(__file__)), "or
 ORCAFILES_FILE    = os.path.join(os.path.dirname(os.path.abspath(__file__)), "orcafiles-app", "index.html")
 ORCAMINT_FILE     = os.path.join(os.path.dirname(os.path.abspath(__file__)), "orcamint-app", "index.html")
 # SMTP — set as Railway env vars (never hard-code credentials)
-SMTP_HOST         = os.environ.get("SMTP_HOST", "")        # e.g. "smtp.gmail.com"
+SMTP_HOST         = os.environ.get("SMTP_HOST", "")        # optional; set only via host env
 SMTP_PORT         = int(os.environ.get("SMTP_PORT", 587))
-SMTP_USER         = os.environ.get("SMTP_USER", "")        # e.g. "orcamail@gmail.com"
-SMTP_PASS         = os.environ.get("SMTP_PASS", "")        # app password
-NOTIFY_FROM       = os.environ.get("NOTIFY_FROM", "orcamail@orcamail.ai")
-# Auto-notify — private: stored ONLY as Railway env vars, never in code or responses
-NOTIFY_WALLET     = os.environ.get("NOTIFY_WALLET", "").lower().strip()  # wallet to watch for new messages
-NOTIFY_EMAIL      = os.environ.get("NOTIFY_EMAIL", "")                   # private email to notify — NEVER expose
+SMTP_USER         = os.environ.get("SMTP_USER", "")
+SMTP_PASS         = os.environ.get("SMTP_PASS", "")
+NOTIFY_FROM       = os.environ.get("NOTIFY_FROM", "noreply@orcamail.ai")
+# Operator notify — ONLY via host env vars; never hardcode; never return in API JSON
+NOTIFY_WALLET     = os.environ.get("NOTIFY_WALLET", "").lower().strip()
+NOTIFY_EMAIL      = os.environ.get("NOTIFY_EMAIL", "")
 
 SERVER_START_TIME = int(time.time())
 
@@ -647,11 +645,12 @@ def query_opted_in(address: str) -> dict:
 
 
 def query_subscription(address: str) -> dict:
-    """Query contract for subscription status and free sends remaining."""
-    is_subscribed = False
-    free_sends = FREE_SENDS_LIMIT  # default if call fails
+    """Subscription from chain; free-send remaining from server counters.
 
-    # Check isSubscribed(address)
+    v2 delivery is server-mediated (not contract sendMail), so free tier
+    must use server-side sends_used — on-chain freeSendsUsed stays 0.
+    """
+    is_subscribed = False
     try:
         result = _eth_call(ORCAMAIL_CONTRACT, _encode_is_subscribed(address))
         if result and result != "0x":
@@ -659,18 +658,66 @@ def query_subscription(address: str) -> dict:
     except Exception:
         pass
 
-    # Check freeSendsRemaining(address)
-    try:
-        result = _eth_call(ORCAMAIL_CONTRACT, _encode_free_sends_remaining(address))
-        if result and result != "0x" and len(result) > 2:
-            free_sends = int(result, 16)
-    except Exception:
-        # Fall back to server-side tracking
+    with _data_lock:
         sends = load_sends()
-        used = sends.get(address, {}).get("sends_used", 0)
-        free_sends = max(0, FREE_SENDS_LIMIT - used)
+        used = sends.get(normalize_address(address), {}).get("sends_used", 0)
+    free_sends = max(0, FREE_SENDS_LIMIT - int(used or 0))
 
     return {"is_subscribed": is_subscribed, "free_sends_remaining": free_sends}
+
+
+def _min_sub_price_lcai() -> float:
+    """Read contract minSubPrice (wei) → LCAI amount. Default 100 if RPC fails."""
+    try:
+        selector = "0xca6e6d8f"  # minSubPrice()
+        result = _eth_call(ORCAMAIL_CONTRACT, selector)
+        if result and result != "0x" and len(result) > 2:
+            wei = int(result, 16)
+            return wei / 1e18
+    except Exception as e:
+        print(f"[minSubPrice] {e}")
+    return 100.0
+
+
+# ── Wallet signature auth (personal_sign / eth_sign typed as defunct) ─────
+AUTH_MAX_AGE_SEC = 600  # 10 minutes
+
+
+def verify_signed_auth(address: str, message: str, signature: str, expected_prefix: str) -> tuple:
+    """Verify EIP-191 personal_sign. message must start with expected_prefix.
+    Returns (ok: bool, error: str|None).
+    Message format: OrcaMail|<action>|<address_lower>|<unix_ts>|<extra>
+    """
+    if not address or not message or not signature:
+        return False, "signature, message, and address are required"
+    if not is_valid_address(address):
+        return False, "Invalid Ethereum address"
+    address = normalize_address(address)
+    if not message.startswith(expected_prefix):
+        return False, "Invalid auth message"
+    parts = message.split("|")
+    if len(parts) < 4:
+        return False, "Malformed auth message"
+    # OrcaMail | action | address | ts | extra...
+    try:
+        msg_addr = parts[2].lower()
+        ts = int(parts[3])
+    except (IndexError, ValueError):
+        return False, "Malformed auth message"
+    if msg_addr != address:
+        return False, "Auth address mismatch"
+    now = int(time.time())
+    if abs(now - ts) > AUTH_MAX_AGE_SEC:
+        return False, "Auth message expired — sign again"
+    try:
+        from eth_account.messages import encode_defunct
+        from eth_account import Account
+        recovered = Account.recover_message(encode_defunct(text=message), signature=signature)
+        if recovered.lower() != address:
+            return False, "Invalid signature"
+    except Exception as e:
+        return False, f"Signature verify failed: {e}"
+    return True, None
 
 
 # ════════════════════════════════════════════════════════════════════════════
@@ -837,9 +884,18 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
             self._handle_stats()
             return
 
-        # ── GET /api/fee ──────────────────────────────────────────
+        # ── GET /api/fee — subscription floor + contract ─────────
         if path == "/api/fee":
-            self._send_json({"fee_lcai": 1, "contract": ORCAMAIL_CONTRACT})
+            min_lcai = _min_sub_price_lcai()
+            self._send_json({
+                "contract": ORCAMAIL_CONTRACT,
+                "chain_id": 9200,
+                "network": "Lightchain Mainnet",
+                "min_sub_price_lcai": min_lcai,
+                "sub_usd_target": 0.50,
+                "free_sends": FREE_SENDS_LIMIT,
+                "subscribe_fn": "subscribe",
+            })
             return
 
         # ── GET /api/pubkey?address=0x... ─────────────────────────
@@ -873,11 +929,15 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
             return
 
         # ── Static assets ─────────────────────────────────────────
-        if path in ("/orcamail-logo.png",):
+        if path in ("/orcamail-logo.png", "/orcamail-icon.png", "/orcamail.png", "/orcamail-thumb.png"):
             self._serve_static(path[1:], "image/png")
             return
         if path == "/orca.gif":
             self._serve_static("orca.gif", "image/gif")
+            return
+        if path in ("/OrcaMail.apk", "/orcamail.apk"):
+            self._serve_static("OrcaMail.apk", "application/vnd.android.package-archive",
+                               download_name="OrcaMail.apk")
             return
 
         self._send_error("Not found", 404)
@@ -1021,7 +1081,9 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
 
     # ── Serve static files ───────────────────────────────────────────────────
 
-    def _serve_static(self, filename: str, content_type: str):
+    def _serve_static(self, filename: str, content_type: str, download_name: str = None):
+        # Prevent path traversal — basename only
+        filename = os.path.basename(filename)
         filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), filename)
         if not os.path.exists(filepath):
             self._send_error("Not found", 404)
@@ -1033,6 +1095,8 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
             self.send_header("Content-Type", content_type)
             self.send_header("Content-Length", len(body))
             self.send_header("Cache-Control", "public, max-age=86400")
+            if download_name:
+                self.send_header("Content-Disposition", f'attachment; filename="{download_name}"')
             self.end_headers()
             self.wfile.write(body)
         except Exception as e:
@@ -1107,12 +1171,25 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
         address = body.get("address", "")
         prefs   = body.get("preferences", {})
         pubkey  = body.get("pubkey", "")   # secp256k1 public key for ECIES encryption
+        message = body.get("message", "")
+        signature = body.get("signature", "")
 
         if not is_valid_address(address):
             self._send_error("Invalid Ethereum address")
             return
 
         address = normalize_address(address)
+        ok, err = verify_signed_auth(
+            address, message, signature,
+            expected_prefix=f"OrcaMail|optin|{address}|",
+        )
+        if not ok:
+            self._send_error(err or "Unauthorized", 401)
+            return
+        # Extra field should include pubkey so sig binds to registered key
+        if pubkey and pubkey not in message:
+            self._send_error("Auth message must include pubkey", 401)
+            return
 
         with _data_lock:
             # Save opt-in record
@@ -1149,12 +1226,21 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
     def _handle_optout(self):
         body    = self._read_body()
         address = body.get("address", "")
+        message = body.get("message", "")
+        signature = body.get("signature", "")
 
         if not is_valid_address(address):
             self._send_error("Invalid Ethereum address")
             return
 
         address = normalize_address(address)
+        ok, err = verify_signed_auth(
+            address, message, signature,
+            expected_prefix=f"OrcaMail|optout|{address}|",
+        )
+        if not ok:
+            self._send_error(err or "Unauthorized", 401)
+            return
 
         with _data_lock:
             # Remove pubkey so new senders can't encrypt to this address
@@ -1205,22 +1291,10 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
     # ── POST /api/notify ─────────────────────────────────────────────────────
 
     def _handle_notify(self):
-        body  = self._read_body()
-        to    = body.get("to", "")
-        email = body.get("email", "")
-        frm   = body.get("from", "unknown")
-
-        if not email or "@" not in email:
-            self._send_error("Valid email required")
-            return
-
-        threading.Thread(
-            target=send_notify_email,
-            args=(email, frm),
-            daemon=True,
-        ).start()
-
-        self._send_json({"ok": True, "queued": True})
+        """Disabled for public use — operator notify is env-only (NOTIFY_WALLET).
+        Prevents open relay / email harvesting abuse."""
+        self._send_error("Public notify disabled", 403)
+        return
 
     # ── POST /api/send ───────────────────────────────────────────────────────
 
@@ -1231,9 +1305,13 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
         from_addr         = body.get("from", "")
         to_addr           = body.get("to", "")
         encrypted_content = body.get("encrypted_body") or body.get("encryptedContent", "")
-        subject           = body.get("subject", "(no subject)")
-        preview           = body.get("preview", "")
+        # Subject/body content must be inside ciphertext for new clients.
+        # Plaintext subject accepted only empty/placeholder for legacy.
+        subject           = body.get("subject", "") or ""
+        preview           = ""  # never store plaintext previews
         message_type      = body.get("messageType", "text")
+        message           = body.get("message", "")
+        signature         = body.get("signature", "")
 
         if not is_valid_address(from_addr):
             self._send_error("Invalid 'from' Ethereum address")
@@ -1248,15 +1326,29 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
         from_addr = normalize_address(from_addr)
         to_addr   = normalize_address(to_addr)
 
+        ok, err = verify_signed_auth(
+            from_addr, message, signature,
+            expected_prefix=f"OrcaMail|send|{from_addr}|",
+        )
+        if not ok:
+            self._send_error(err or "Unauthorized", 401)
+            return
+        # Bind destination into signed message
+        if to_addr not in message.lower() and to_addr[2:] not in message.lower():
+            # require full address in message extra
+            if to_addr not in message:
+                self._send_error("Auth message must include recipient address", 401)
+                return
+
+        # Reject accidental plaintext subject dumps (long non-placeholder)
+        if subject and subject not in ("", "(encrypted)", "(no subject)") and len(subject) > 0:
+            # Allow short legacy placeholder only — strip any real subject
+            subject = "(encrypted)"
+
         # Check send allowance (subscription or free tier)
         sub = query_subscription(from_addr)
         if not sub["is_subscribed"]:
-            # Check server-side send count as authoritative fallback
-            with _data_lock:
-                sends = load_sends()
-                used  = sends.get(from_addr, {}).get("sends_used", 0)
-            free_remaining = max(0, FREE_SENDS_LIMIT - used)
-            if free_remaining <= 0 and sub["free_sends_remaining"] <= 0:
+            if sub["free_sends_remaining"] <= 0:
                 self._send_error("No sends remaining. Please subscribe to continue.", 402)
                 return
 
@@ -1270,12 +1362,13 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
             "to":               to_addr,
             "encrypted_body":   encrypted_content,
             "encryptedContent": encrypted_content,  # v1 compat
-            "subject":          subject,
+            "subject":          "(encrypted)",
             "preview":          preview,
             "messageType":      message_type,
             "timestamp":        timestamp,
             "delivered":        False,
             "read":             False,
+            "payload_v":        2,  # encrypted JSON {s,b}
         }
 
         with _data_lock:
@@ -1354,6 +1447,8 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
         body       = self._read_body()
         address    = body.get("address", "")
         message_id = body.get("messageId", "") or body.get("id", "")
+        message    = body.get("message", "")
+        signature  = body.get("signature", "")
 
         if not is_valid_address(address):
             self._send_error("Invalid Ethereum address")
@@ -1363,6 +1458,16 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
             return
 
         address = normalize_address(address)
+        ok, err = verify_signed_auth(
+            address, message, signature,
+            expected_prefix=f"OrcaMail|delete|{address}|",
+        )
+        if not ok:
+            self._send_error(err or "Unauthorized", 401)
+            return
+        if message_id not in message:
+            self._send_error("Auth message must include messageId", 401)
+            return
 
         with _data_lock:
             messages = load_messages()
@@ -1386,12 +1491,14 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
 
         self._send_json({"ok": True})
 
-    # ── POST /api/mark-read (v2 — no signature required) ────────────────────
+    # ── POST /api/mark-read (v2 — signature required) ──────────────────────
 
     def _handle_mark_read_v2(self):
         body       = self._read_body()
         address    = body.get("address", "")
         message_id = body.get("messageId", "")
+        message    = body.get("message", "")
+        signature  = body.get("signature", "")
 
         if not is_valid_address(address):
             self._send_error("Invalid address")
@@ -1401,6 +1508,14 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
             return
 
         address = normalize_address(address)
+        ok, err = verify_signed_auth(
+            address, message, signature,
+            expected_prefix=f"OrcaMail|read|{address}|",
+        )
+        if not ok:
+            self._send_error(err or "Unauthorized", 401)
+            return
+
         with _data_lock:
             messages = load_messages()
             inbox    = messages.get(address, [])
@@ -1554,7 +1669,7 @@ def main():
                 json.dump({}, f)
 
     server = HTTPServer(("0.0.0.0", PORT), OrcaMailHandler)
-    print(f"OrcaMail server v1.1.0 running on http://0.0.0.0:{PORT}")
+    print(f"OrcaMail server v1.2.0 running on http://0.0.0.0:{PORT}")
     print(f"  Contract : {ORCAMAIL_CONTRACT}")
     print(f"  RPC      : {LCAI_RPC}")
     print(f"  Data     : {DATA_FILE}")
