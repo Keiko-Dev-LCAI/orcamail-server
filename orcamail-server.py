@@ -19,6 +19,7 @@ import sys
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import json
 import os
+import socketserver
 
 # Local pylibs override (only active when running on the original PC)
 _local_pylibs = '/home/keiko/pylibs'
@@ -61,6 +62,8 @@ SMTP_HOST         = os.environ.get("SMTP_HOST", "")        # optional; set only 
 SMTP_PORT         = int(os.environ.get("SMTP_PORT", 587))
 SMTP_USER         = os.environ.get("SMTP_USER", "")
 SMTP_PASS         = os.environ.get("SMTP_PASS", "")
+# Bound every outbound SMTP call — a hung mail server must not wedge a worker forever
+SMTP_TIMEOUT      = int(os.environ.get("SMTP_TIMEOUT", "20"))
 NOTIFY_FROM       = os.environ.get("NOTIFY_FROM", "noreply@orcamail.ai")
 # Operator notify — ONLY via host env vars; never hardcode; never return in API JSON
 NOTIFY_WALLET     = os.environ.get("NOTIFY_WALLET", "").lower().strip()
@@ -773,8 +776,10 @@ def send_notify_email(to_email: str, from_wallet: str):
         msg.attach(MIMEText(text_body, "plain"))
         msg.attach(MIMEText(html_body, "html"))
 
-        with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+        with smtplib.SMTP(SMTP_HOST, SMTP_PORT, timeout=SMTP_TIMEOUT) as server:
+            server.ehlo()
             server.starttls()
+            server.ehlo()
             server.login(SMTP_USER, SMTP_PASS)
             server.sendmail(NOTIFY_FROM, to_email, msg.as_string())
 
@@ -1661,6 +1666,12 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
 # MAIN
 # ════════════════════════════════════════════════════════════════════════════
 
+class ThreadedHTTPServer(socketserver.ThreadingMixIn, HTTPServer):
+    """One hung request (RPC/SMTP/proxy) must not freeze the whole process."""
+    daemon_threads = True
+    allow_reuse_address = True
+
+
 def main():
     os.makedirs(DATA_DIR, exist_ok=True)
     for fpath in (DATA_FILE, STATS_FILE, PUBKEYS_FILE, OPTINS_FILE):
@@ -1668,13 +1679,14 @@ def main():
             with open(fpath, "w") as f:
                 json.dump({}, f)
 
-    server = HTTPServer(("0.0.0.0", PORT), OrcaMailHandler)
-    print(f"OrcaMail server v1.2.0 running on http://0.0.0.0:{PORT}")
+    server = ThreadedHTTPServer(("0.0.0.0", PORT), OrcaMailHandler)
+    print(f"OrcaMail server v1.2.1 running on http://0.0.0.0:{PORT}")
     print(f"  Contract : {ORCAMAIL_CONTRACT}")
     print(f"  RPC      : {LCAI_RPC}")
     print(f"  Data     : {DATA_FILE}")
     print(f"  Pubkeys  : {PUBKEYS_FILE}")
-    print(f"  SMTP     : {SMTP_HOST or '(not configured)'}")
+    print(f"  SMTP     : {SMTP_HOST or '(not configured)'} (timeout={SMTP_TIMEOUT}s)")
+    print(f"  HTTP     : threaded (ThreadingMixIn)")
     if NOTIFY_WALLET:
         print(f"  Notify   : watching wallet {NOTIFY_WALLET[:8]}... → {_mask_email(NOTIFY_EMAIL) if NOTIFY_EMAIL else '(no email set)'}")
     try:
