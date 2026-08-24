@@ -674,23 +674,57 @@ def query_opted_in(address: str) -> dict:
     return {"optedIn": opted_in, "preferences": {}}
 
 
+SUB_CACHE_TTL = int(os.environ.get("SUB_CACHE_TTL", "300"))  # seconds
+
 def query_subscription(address: str) -> dict:
-    """Subscription from chain; free-send remaining from server counters.
+    """Subscription from chain (cached ~5 min); free-send remaining from server counters.
 
     v2 delivery is server-mediated (not contract sendMail), so free tier
     must use server-side sends_used — on-chain freeSendsUsed stays 0.
-    """
-    is_subscribed = False
-    try:
-        result = _eth_call(ORCAMAIL_CONTRACT, _encode_is_subscribed(address))
-        if result and result != "0x":
-            is_subscribed = int(result, 16) != 0
-    except Exception:
-        pass
 
+    is_subscribed rarely changes, so we cache the on-chain read to avoid hitting
+    the (slow/flaky) mainnet RPC on every optin/status call. We only cache a
+    *definitive* answer — an RPC failure is never cached, so it retries next call
+    instead of locking in a wrong "not subscribed" for 5 minutes. free_sends is
+    always recomputed fresh from local counters (never cached — it's local & cheap).
+    Lock discipline: read/write cache under the lock, but NEVER eth_call while
+    holding it (that nested acquire is what deadlocked the server before).
+    """
+    addr = normalize_address(address)
+    now = int(time.time())
+
+    # 1) Try cache (read under lock only).
+    is_subscribed = None
+    with _data_locked():
+        stats = load_stats()
+        sub_cache = stats.setdefault("sub_cache", {})
+        entry = sub_cache.get(addr)
+        if entry and (now - entry.get("ts", 0)) < SUB_CACHE_TTL:
+            is_subscribed = bool(entry.get("is_subscribed", False))
+
+    # 2) Cache miss → hit chain OUTSIDE the lock; cache only a real answer.
+    if is_subscribed is None:
+        chain_val = False
+        got_answer = False
+        try:
+            result = _eth_call(ORCAMAIL_CONTRACT, _encode_is_subscribed(addr))
+            if result and result != "0x":
+                chain_val = int(result, 16) != 0
+                got_answer = True
+        except Exception:
+            pass
+        is_subscribed = chain_val
+        if got_answer:
+            with _data_locked():
+                stats = load_stats()
+                sub_cache = stats.setdefault("sub_cache", {})
+                sub_cache[addr] = {"is_subscribed": is_subscribed, "ts": now}
+                save_stats(stats)
+
+    # 3) Free sends always fresh from local counters.
     with _data_locked():
         sends = load_sends()
-        used = sends.get(normalize_address(address), {}).get("sends_used", 0)
+        used = sends.get(addr, {}).get("sends_used", 0)
     free_sends = max(0, FREE_SENDS_LIMIT - int(used or 0))
 
     return {"is_subscribed": is_subscribed, "free_sends_remaining": free_sends}
