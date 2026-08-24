@@ -328,6 +328,13 @@ body.app-mode{height:100dvh;max-height:100dvh;overflow:hidden;}
           <textarea id="compose-body" class="form-textarea" placeholder="Write your message here..." oninput="updateCharCount()"></textarea>
           <div class="char-count"><span id="char-count">0</span> / 2000 characters</div>
         </div>
+        <div class="form-group">
+          <label class="form-label">Attachments</label>
+          <input type="file" id="attach-input" multiple accept="image/*,.gif,.pdf,.doc,.docx,.txt,.csv" style="display:none" onchange="onAttachPick(event)">
+          <button type="button" class="btn btn-sm" style="width:100%" onclick="el('attach-input').click()">📎 Attach a photo, gif, or file</button>
+          <div id="attach-chips" class="chip-box" style="display:none;margin-top:8px"></div>
+          <div class="char-count">Images, gifs &amp; docs · max 3 MB each, 6 MB per message · encrypted end-to-end</div>
+        </div>
         <div class="encrypt-badge">🔒 Subject + body encrypted end-to-end — only the recipient can read them</div>
         <div id="compose-sends-left" class="text-muted"></div>
         <button class="btn btn-primary" style="padding:15px;font-size:16px" onclick="sendMessage()">📤 Send Encrypted Message</button>
@@ -550,6 +557,14 @@ body.app-mode{height:100dvh;max-height:100dvh;overflow:hidden;}
         <div style="font-size:15px;color:#8eaac5;line-height:1.75">
           Go to the <strong style="color:#dce8f5">Compose</strong> tab. In the <strong style="color:#dce8f5">To</strong> box, type a saved contact's name (it autocompletes) or paste a wallet address (0x...) and press Enter — each recipient becomes a removable chip. You can add several people at once, or use <strong style="color:#dce8f5">➕ Add a whole group</strong> to drop in everyone in a group. Add a subject and your message, then tap <strong style="color:#dce8f5">Send Encrypted Message</strong> — OrcaMail encrypts a separate copy for each recipient so only they can read it.<br><br>
           You get <strong style="color:#dce8f5">5 free sends</strong> after connecting. After that, a subscription of about <strong style="color:#dce8f5">$0.50/month in LCAI</strong> (never below the on-chain minimum) unlocks unlimited sending for 30 days.
+        </div>
+      </div>
+      <div style="height:1px;background:#2e4060;margin-bottom:20px"></div>
+
+      <div style="margin-bottom:20px">
+        <div style="font-size:16px;font-weight:800;color:#06b6d4;margin-bottom:12px">📎 Attachments</div>
+        <div style="font-size:15px;color:#8eaac5;line-height:1.75">
+          In <strong style="color:#dce8f5">Compose</strong>, tap <strong style="color:#dce8f5">📎 Attach</strong> to send photos, screenshots, gifs, or documents. Each file can be up to <strong style="color:#dce8f5">3 MB</strong>, up to <strong style="color:#dce8f5">6 MB total</strong> per message. Attachments are encrypted end-to-end just like your message — only the recipient can open them. Images and gifs show right inside the message; documents arrive as a download button.
         </div>
       </div>
       <div style="height:1px;background:#2e4060;margin-bottom:20px"></div>
@@ -1206,15 +1221,17 @@ async function openMessage(msgId){
     const plain=await decryptMessage(msg.encrypted_body);
     let subject=msg.subject||'(no subject)';
     let body=plain;
+    let atts=[];
     try{
       const j=JSON.parse(plain);
       if(j&&typeof j.b==='string'){
         body=j.b;
         if(typeof j.s==='string')subject=j.s;
+        if(Array.isArray(j.a))atts=j.a;
       }
     }catch(_e){ /* legacy: body-only ciphertext */ }
     el('modal-msg-subject').textContent=subject;
-    el('modal-msg-body').textContent=body;
+    renderMessageBody(body,atts);
     msg._decryptedSubject=subject;
     if(!msg.read){
       msg.read=true;
@@ -1560,15 +1577,20 @@ async function sendMessage(){
   const subject=(el('compose-subject').value||'').trim();
   const body=(el('compose-body').value||'').trim();
 
+  const atts=(S.attachments||[]);
   if(!S.recipients.length){toast('Add at least one recipient',true);return;}
-  if(!body){toast('Message cannot be empty',true);return;}
+  if(!body&&!atts.length){toast('Add a message or an attachment',true);return;}
   if(body.length>2000){toast('Message too long (max 2000 characters)',true);return;}
+  const attTotal=atts.reduce((s,a)=>s+(a.size||0),0);
+  if(attTotal>MAX_ATTACH_TOTAL){toast('Attachments too large (max 6 MB total)',true);return;}
   if(!S.isPaid&&S.freeSendsLeft<=0){openPaymentModal();return;}
 
   const btn=document.querySelector('#tab-compose .btn-primary');
   btn.disabled=true;
   const recips=S.recipients.slice();
-  const payload=JSON.stringify({s:subject||'(no subject)',b:body,v:2});
+  const payloadObj={s:subject||'(no subject)',b:body,v:2};
+  if(atts.length)payloadObj.a=atts.map(a=>({n:a.n,t:a.t,d:a.d}));
+  const payload=JSON.stringify(payloadObj);
 
   let sent=0;const skipped=[],failed=[];let outOfSends=false;
   for(let i=0;i<recips.length;i++){
@@ -1606,7 +1628,7 @@ async function sendMessage(){
     // Keep any that didn't go through so she can review/retry; clear the rest
     S.recipients=skipped.concat(failed);
     renderChips();
-    if(!S.recipients.length){el('compose-subject').value='';el('compose-body').value='';updateCharCount();}
+    if(!S.recipients.length){el('compose-subject').value='';el('compose-body').value='';S.attachments=[];renderAttachChips();updateCharCount();}
     loadStatus();
   }
   if(outOfSends&&!S.isPaid)setTimeout(openPaymentModal,700);
@@ -1635,6 +1657,58 @@ async function encryptMessage(plaintext,recipientPubHex){
   const result=new Uint8Array(65+12+encBytes.length);
   result.set(ephPub,0);result.set(iv,65);result.set(encBytes,77);
   return ethers.hexlify(result);
+}
+
+// ── Attachments (light: base64 inside the encrypted payload) ────────────────
+const MAX_ATTACH_BYTES=3*1024*1024;   // 3 MB per file
+const MAX_ATTACH_TOTAL=6*1024*1024;   // 6 MB per message
+function fmtBytes(n){if(n<1024)return n+' B';if(n<1048576)return (n/1024).toFixed(0)+' KB';return (n/1048576).toFixed(1)+' MB';}
+function onAttachPick(e){
+  S.attachments=S.attachments||[];
+  const files=Array.from(e.target.files||[]);
+  files.forEach(f=>{
+    if(f.size>MAX_ATTACH_BYTES){toast('"'+f.name+'" is over 3 MB — skipped',true);return;}
+    const reader=new FileReader();
+    reader.onload=()=>{
+      const d=String(reader.result||'');
+      const b64=d.indexOf(',')>=0?d.slice(d.indexOf(',')+1):d;
+      S.attachments.push({n:f.name,t:f.type||'application/octet-stream',d:b64,size:f.size});
+      renderAttachChips();
+    };
+    reader.readAsDataURL(f);
+  });
+  e.target.value='';
+}
+function removeAttachment(i){S.attachments=S.attachments||[];S.attachments.splice(i,1);renderAttachChips();}
+function renderAttachChips(){
+  S.attachments=S.attachments||[];
+  const box=el('attach-chips');
+  if(!box)return;
+  if(!S.attachments.length){box.style.display='none';box.innerHTML='';return;}
+  box.style.display='flex';
+  box.innerHTML=S.attachments.map((a,i)=>{
+    const ico=a.t.indexOf('image/')===0?'🖼️':'📄';
+    return '<span class="chip"><span class="chip-label">'+ico+' '+esc(a.n)+'</span><span class="chip-sub">'+fmtBytes(a.size)+'</span><button class="chip-x" onclick="removeAttachment('+i+')">×</button></span>';
+  }).join('');
+}
+function renderMessageBody(body,atts){
+  const target=el('modal-msg-body');
+  let html='<div style="white-space:pre-wrap;line-height:1.7">'+esc(body)+'</div>';
+  if(atts&&atts.length){
+    html+='<div style="margin-top:14px;display:flex;flex-direction:column;gap:10px">';
+    atts.forEach(a=>{
+      const name=esc(a.n||'file');
+      const type=(a.t||'application/octet-stream');
+      const src='data:'+type.replace(/[^a-zA-Z0-9/.+-]/g,'')+';base64,'+(a.d||'');
+      if(type.indexOf('image/')===0){
+        html+='<div><img src="'+src+'" alt="'+name+'" style="max-width:100%;border-radius:10px;border:1px solid var(--border)"><div style="font-size:12px;color:var(--text-muted);margin-top:4px">'+name+'</div></div>';
+      }else{
+        html+='<a href="'+src+'" download="'+name+'" class="btn btn-sm" style="text-decoration:none;display:inline-flex;align-items:center;gap:8px;width:fit-content">📄 '+name+'</a>';
+      }
+    });
+    html+='</div>';
+  }
+  target.innerHTML=html;
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────
