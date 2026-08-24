@@ -604,6 +604,12 @@ def save_sends(data: dict):
 # ON-CHAIN CALL — hasOptedIn / isSubscribed / freeSendsRemaining
 # ════════════════════════════════════════════════════════════════════════════
 
+# Keep this SHORT. optin/status makes two eth_calls back-to-back, so total
+# worst-case wait is 2x this. When the RPC is slow/down, the endpoint must
+# fail fast and let the server-side fallbacks answer instead of hanging the
+# browser (which is what caused Opt-In/Subscription to spin on "Checking…").
+RPC_TIMEOUT = float(os.environ.get("RPC_TIMEOUT", "3"))
+
 def _eth_call(to: str, data_hex: str) -> str:
     """Low-level eth_call via JSON-RPC (no web3 dependency)."""
     payload = json.dumps({
@@ -618,7 +624,7 @@ def _eth_call(to: str, data_hex: str) -> str:
         headers={"Content-Type": "application/json"},
     )
     try:
-        with urllib.request.urlopen(req, timeout=10) as r:
+        with urllib.request.urlopen(req, timeout=RPC_TIMEOUT) as r:
             resp = json.loads(r.read())
             return resp.get("result", "0x")
     except Exception as e:
