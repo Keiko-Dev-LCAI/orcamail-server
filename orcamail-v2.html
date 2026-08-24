@@ -115,6 +115,9 @@ body.app-mode{height:100dvh;max-height:100dvh;overflow:hidden;}
 .message-view-subject{font-size:22px;font-weight:800;color:var(--text);margin-bottom:10px;}
 .message-view-meta{display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:var(--text-muted);}
 .message-view-meta span{display:flex;align-items:center;gap:4px;}
+.copy-addr{cursor:pointer;border-radius:8px;padding:2px 6px;transition:background .15s;}
+.copy-addr:hover{background:rgba(6,182,212,0.12);}
+.copy-addr .copy-ico{font-size:12px;opacity:.6;}
 .message-view-body{font-size:16px;line-height:1.75;color:var(--text);white-space:pre-wrap;background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:20px;}
 .lock-box{background:rgba(6,182,212,0.08);border:1px solid rgba(6,182,212,0.25);border-radius:12px;padding:14px 16px;font-size:14px;color:var(--teal);display:flex;align-items:center;gap:10px;margin-bottom:16px;}
 
@@ -305,6 +308,10 @@ body.app-mode{height:100dvh;max-height:100dvh;overflow:hidden;}
         ⚠️ You need to <strong>opt in</strong> to receive messages. Tap below to register your encryption key.
         <br><button class="btn btn-teal btn-sm" style="margin-top:10px" onclick="doOptIn()">✅ Opt In to Receive Messages</button>
       </div>
+      <div id="inbox-search-wrap" style="display:none;margin-bottom:12px;position:relative">
+        <input type="text" id="inbox-search" class="form-input" placeholder="🔎 Search by sender or subject…" oninput="filterInbox()" style="padding-right:34px">
+        <button type="button" id="inbox-search-clear" onclick="clearInboxSearch()" title="Clear" style="display:none;position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px">✕</button>
+      </div>
       <div id="inbox-content"></div>
     </div>
 
@@ -458,7 +465,7 @@ body.app-mode{height:100dvh;max-height:100dvh;overflow:hidden;}
     <div class="modal-body">
       <div class="lock-box">🔒 Decrypted locally in your browser — never sent to any server in readable form</div>
       <div class="message-view-meta">
-        <span>📤 <strong id="modal-msg-from">—</strong></span>
+        <span class="copy-addr" onclick="copyAddr(el('modal-msg-from').textContent,this)" title="Click to copy address">📤 <strong id="modal-msg-from">—</strong> <span class="copy-ico">📋</span></span>
         <span>🕐 <span id="modal-msg-time">—</span></span>
       </div>
       <div class="divider"></div>
@@ -562,7 +569,8 @@ body.app-mode{height:100dvh;max-height:100dvh;overflow:hidden;}
       <div style="margin-bottom:20px">
         <div style="font-size:16px;font-weight:800;color:#06b6d4;margin-bottom:12px">📬 Receiving Messages</div>
         <div style="font-size:15px;color:#8eaac5;line-height:1.75">
-          Receiving is <strong style="color:#dce8f5">always free</strong>. Once opted in, anyone can send you a message. Open your <strong style="color:#dce8f5">Inbox</strong> tab to see messages. Tap any message to read it — it decrypts right in your browser using your wallet key, so nobody else can see the content.
+          Receiving is <strong style="color:#dce8f5">always free</strong>. Once opted in, anyone can send you a message. Open your <strong style="color:#dce8f5">Inbox</strong> tab to see messages. Tap any message to read it — it decrypts right in your browser using your wallet key, so nobody else can see the content. Links in a message are clickable and open in a new tab.<br><br>
+          Tap <strong style="color:#dce8f5">↩ Reply</strong> to answer — it fills in the sender and quotes their message. Tap the <strong style="color:#dce8f5">sender address</strong> to copy it. Use the <strong style="color:#dce8f5">🔎 search box</strong> at the top of your inbox to find a message by sender or subject.
         </div>
       </div>
       <div style="height:1px;background:#2e4060;margin-bottom:20px"></div>
@@ -570,7 +578,8 @@ body.app-mode{height:100dvh;max-height:100dvh;overflow:hidden;}
       <div style="margin-bottom:20px">
         <div style="font-size:16px;font-weight:800;color:#06b6d4;margin-bottom:12px">📤 Sending Messages</div>
         <div style="font-size:15px;color:#8eaac5;line-height:1.75">
-          Go to the <strong style="color:#dce8f5">Compose</strong> tab. In the <strong style="color:#dce8f5">To</strong> box, type a saved contact's name (it autocompletes) or paste a wallet address (0x...) and press Enter — each recipient becomes a removable chip. You can add several people at once, or use <strong style="color:#dce8f5">➕ Add a whole group</strong> to drop in everyone in a group. Add a subject and your message, then tap <strong style="color:#dce8f5">Send Encrypted Message</strong> — OrcaMail encrypts a separate copy for each recipient so only they can read it.<br><br>
+          Go to the <strong style="color:#dce8f5">Compose</strong> tab. In the <strong style="color:#dce8f5">To</strong> box, type a saved contact's name (it autocompletes) or paste a wallet address (0x...) and press Enter — each recipient becomes a removable chip. You can add several people at once, or use <strong style="color:#dce8f5">➕ Add a whole group</strong> to drop in everyone in a group. Add a subject and your message, then tap <strong style="color:#dce8f5">Send Encrypted Message</strong> — OrcaMail encrypts a separate copy for each recipient so only they can read it. You can also press <strong style="color:#dce8f5">Ctrl+Enter</strong> (⌘+Enter on Mac) to send.<br><br>
+          Tap <strong style="color:#dce8f5">😀 Emoji</strong> to add emojis, and misspelled words are underlined as you type so you can catch typos.<br><br>
           You get <strong style="color:#dce8f5">5 free sends</strong> after connecting. After that, a subscription of about <strong style="color:#dce8f5">$0.50/month in LCAI</strong> (never below the on-chain minimum) unlocks unlimited sending for 30 days.
         </div>
       </div>
@@ -841,6 +850,20 @@ function openModal(id){el(id).style.display='flex';}
 function closeModal(id){el(id).style.display='none';}
 function overlayClose(e,id){if(e.target===e.currentTarget)closeModal(id);}
 function fmtAddr(a){return a?a.slice(0,6)+'...'+a.slice(-4):'';}
+function copyAddr(text,elm){
+  text=(text||'').trim();
+  if(!text)return;
+  const done=()=>{
+    toast('Address copied');
+    if(elm){const ico=elm.querySelector('.copy-ico');if(ico){const old=ico.textContent;ico.textContent='✅';setTimeout(()=>{ico.textContent=old;},1200);}}
+  };
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(done).catch(()=>fallbackCopy(text,done));
+  }else{fallbackCopy(text,done);}
+}
+function fallbackCopy(text,done){
+  try{const t=document.createElement('textarea');t.value=text;t.style.position='fixed';t.style.opacity='0';document.body.appendChild(t);t.select();document.execCommand('copy');document.body.removeChild(t);done();}catch(e){toast('Could not copy');}
+}
 function fmtTime(ts){
   const d=new Date(ts*1000);
   const now=new Date();
@@ -1191,13 +1214,42 @@ async function loadInbox(forceRefresh=false){
   }
 }
 
+function filterInbox(){
+  const inp=el('inbox-search');
+  S.inboxQuery=inp?inp.value:'';
+  const clr=el('inbox-search-clear');
+  if(clr)clr.style.display=S.inboxQuery?'block':'none';
+  renderInbox();
+}
+function clearInboxSearch(){
+  const inp=el('inbox-search');if(inp)inp.value='';
+  S.inboxQuery='';
+  const clr=el('inbox-search-clear');if(clr)clr.style.display='none';
+  renderInbox();
+}
 function renderInbox(){
   const c=el('inbox-content');
+  const wrap=el('inbox-search-wrap');
   if(!S.messages.length){
+    if(wrap)wrap.style.display='none';
     renderInboxEmpty(S.optedIn?'Your inbox is empty. Share your wallet address to receive messages.':'Opt in above to start receiving messages.');
     return;
   }
-  c.innerHTML=S.messages.map(m=>`
+  if(wrap)wrap.style.display='';
+  const q=(S.inboxQuery||'').trim().toLowerCase();
+  let list=S.messages;
+  if(q){
+    list=S.messages.filter(m=>{
+      const from=(m.from||'').toLowerCase();
+      const subj=((m._decryptedSubject||m.subject||'')).toLowerCase();
+      return from.includes(q)||(subj&&subj!=='(encrypted)'&&subj.includes(q));
+    });
+  }
+  if(!list.length){
+    c.innerHTML='<div class="empty-state" style="padding:32px 16px"><div class="empty-state-icon">🔎</div><h3>No matches</h3><p>Nothing in your inbox matches “'+esc(S.inboxQuery)+'”.</p></div>';
+    return;
+  }
+  c.innerHTML=list.map(m=>`
     <div class="message-item${m.read?'':' unread'}" onclick="openMessage('${m.id}')">
       ${!m.read?'<div class="message-unread-dot"></div>':''}
       <div class="message-item-header">
