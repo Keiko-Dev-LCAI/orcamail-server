@@ -199,6 +199,16 @@ body.app-mode{height:100dvh;max-height:100dvh;overflow:hidden;}
   .chip .chip-x:hover{color:#f87171;}
   .chip-input{flex:1;min-width:120px;border:none;background:none;outline:none;color:var(--text);font-size:16px;font-family:inherit;padding:4px 2px;}
   .chip-input::placeholder{color:var(--text-dim);}
+  /* ── Emoji picker ── */
+  .emoji-toggle{margin-top:8px;background:var(--bg3);border:1.5px solid var(--border2);border-radius:10px;padding:6px 12px;color:var(--text);cursor:pointer;font-size:14px;}
+  .emoji-toggle:hover{border-color:var(--teal);}
+  .emoji-panel{margin-top:8px;border:1.5px solid var(--border2);border-radius:12px;background:var(--bg3);padding:10px;}
+  .emoji-cats{display:flex;gap:2px;flex-wrap:wrap;margin-bottom:8px;border-bottom:1px solid var(--border);padding-bottom:8px;}
+  .emoji-cat{background:none;border:none;font-size:20px;cursor:pointer;padding:4px 6px;border-radius:8px;opacity:0.7;line-height:1;}
+  .emoji-cat.active,.emoji-cat:hover{background:rgba(6,182,212,0.15);opacity:1;}
+  .emoji-grid{display:grid;grid-template-columns:repeat(8,1fr);gap:2px;max-height:210px;overflow-y:auto;}
+  .emoji-grid button{background:none;border:none;font-size:22px;cursor:pointer;padding:5px 0;border-radius:8px;line-height:1;}
+  .emoji-grid button:hover{background:rgba(6,182,212,0.15);}
   .autocomplete{position:relative;margin-top:4px;background:var(--bg3);border:1px solid var(--border2);border-radius:12px;overflow:hidden;max-height:220px;overflow-y:auto;}
   .ac-item{padding:10px 14px;cursor:pointer;display:flex;flex-direction:column;gap:2px;border-bottom:1px solid var(--border);}
   .ac-item:last-child{border-bottom:none;}
@@ -321,12 +331,17 @@ body.app-mode{height:100dvh;max-height:100dvh;overflow:hidden;}
         </div>
         <div class="form-group">
           <label class="form-label">Subject</label>
-          <input type="text" id="compose-subject" class="form-input" placeholder="What's this about?">
+          <input type="text" id="compose-subject" class="form-input" placeholder="What's this about?" spellcheck="true">
         </div>
         <div class="form-group">
           <label class="form-label">Message</label>
-          <textarea id="compose-body" class="form-textarea" placeholder="Write your message here..." oninput="updateCharCount()"></textarea>
+          <textarea id="compose-body" class="form-textarea" placeholder="Write your message here...  (Ctrl+Enter to send)" spellcheck="true" oninput="updateCharCount()" onkeydown="composeKey(event)"></textarea>
           <div class="char-count"><span id="char-count">0</span> / 2000 characters</div>
+          <button type="button" class="emoji-toggle" onclick="toggleEmojiPicker()">😀 Emoji</button>
+          <div id="emoji-panel" class="emoji-panel" style="display:none">
+            <div id="emoji-cats" class="emoji-cats"></div>
+            <div id="emoji-grid" class="emoji-grid"></div>
+          </div>
         </div>
         <div class="form-group">
           <label class="form-label">Attachments</label>
@@ -829,7 +844,14 @@ function fmtAddr(a){return a?a.slice(0,6)+'...'+a.slice(-4):'';}
 function fmtTime(ts){
   const d=new Date(ts*1000);
   const now=new Date();
-  if(d.toDateString()===now.toDateString()) return d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+  const diff=(now-d)/1000; // seconds
+  if(diff>=0&&diff<45) return 'just now';
+  if(diff<90) return '1m ago';
+  if(diff<3600) return Math.round(diff/60)+'m ago';
+  if(diff<5400) return '1h ago';
+  if(diff<86400&&d.toDateString()===now.toDateString()) return Math.round(diff/3600)+'h ago';
+  const y=new Date(now);y.setDate(now.getDate()-1);
+  if(d.toDateString()===y.toDateString()) return 'Yesterday '+d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
   return d.toLocaleDateString([],{month:'short',day:'numeric'})+' '+d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
 }
 
@@ -1233,6 +1255,7 @@ async function openMessage(msgId){
     el('modal-msg-subject').textContent=subject;
     renderMessageBody(body,atts);
     msg._decryptedSubject=subject;
+    msg._decryptedBody=body;
     if(!msg.read){
       msg.read=true;
       renderInbox();
@@ -1313,7 +1336,18 @@ function replyToMessage(){
   showTab('compose');
   const subj=msg._decryptedSubject||((msg.subject&&msg.subject!=='(encrypted)')?msg.subject:'');
   el('compose-subject').value=subj.startsWith('Re: ')?subj:('Re: '+subj);
-  el('compose-body').focus();
+  const ta=el('compose-body');
+  const orig=msg._decryptedBody||'';
+  if(orig){
+    const when=fmtTime(msg.timestamp);
+    const quoted=orig.split('\n').map(l=>'> '+l).join('\n');
+    ta.value='\n\n----- On '+when+', '+fmtAddr(msg.from)+' wrote: -----\n'+quoted+'\n';
+    ta.setSelectionRange(0,0);
+  }else{
+    ta.value='';
+  }
+  updateCharCount();
+  ta.focus();
 }
 
 async function deleteCurrentMessage(){
@@ -1333,6 +1367,12 @@ function updateCharCount(){
   const v=el('compose-body').value.length;
   el('char-count').textContent=v;
   el('char-count').style.color=v>2000?'#dc2626':'';
+}
+function composeKey(e){
+  if((e.ctrlKey||e.metaKey)&&(e.key==='Enter'||e.keyCode===13)){
+    e.preventDefault();
+    sendMessage();
+  }
 }
 
 // ── Contacts store (local-only; never leaves this device) ──────────────────
@@ -1691,9 +1731,24 @@ function renderAttachChips(){
     return '<span class="chip"><span class="chip-label">'+ico+' '+esc(a.n)+'</span><span class="chip-sub">'+fmtBytes(a.size)+'</span><button class="chip-x" onclick="removeAttachment('+i+')">×</button></span>';
   }).join('');
 }
+function linkify(text){
+  // Make http/https URLs clickable. Everything is escaped; only http/https allowed.
+  const urlRe=/(https?:\/\/[^\s<]+)/g;
+  let out='',last=0,m;
+  while((m=urlRe.exec(text))!==null){
+    out+=esc(text.slice(last,m.index));
+    let url=m[0],trail='';
+    const tm=url.match(/[.,!?;:)\]}'"]+$/);
+    if(tm){trail=url.slice(url.length-tm[0].length);url=url.slice(0,url.length-tm[0].length);}
+    out+='<a href="'+esc(url)+'" target="_blank" rel="noopener noreferrer nofollow" style="color:var(--teal);text-decoration:underline;word-break:break-all">'+esc(url)+'</a>'+esc(trail);
+    last=m.index+m[0].length;
+  }
+  out+=esc(text.slice(last));
+  return out;
+}
 function renderMessageBody(body,atts){
   const target=el('modal-msg-body');
-  let html='<div style="white-space:pre-wrap;line-height:1.7">'+esc(body)+'</div>';
+  let html='<div style="white-space:pre-wrap;line-height:1.7">'+linkify(body)+'</div>';
   if(atts&&atts.length){
     html+='<div style="margin-top:14px;display:flex;flex-direction:column;gap:10px">';
     atts.forEach(a=>{
@@ -1709,6 +1764,47 @@ function renderMessageBody(body,atts){
     html+='</div>';
   }
   target.innerHTML=html;
+}
+
+// ── Emoji picker ────────────────────────────────────────────────────────────
+const EMOJI_CATS=[
+  {icon:'😀',emojis:'😀 😃 😄 😁 😆 😅 😂 🤣 🥲 ☺️ 😊 😇 🙂 🙃 😉 😌 😍 🥰 😘 😗 😙 😚 😋 😛 😝 😜 🤪 🤨 🧐 🤓 😎 🥸 🤩 🥳 😏 😒 😞 😔 😟 😕 🙁 ☹️ 😣 😖 😫 😩 🥺 😢 😭 😤 😠 😡 🤬 🤯 😳 🥵 🥶 😱 😨 😰 😥 😓 🤗 🤔 🤭 🤫 🤥 😶 😐 😑 😬 🙄 😯 😦 😧 😮 😲 🥱 😴 🤤 😪 😵 🤐 🥴 🤢 🤮 🤧 😷 🤒 🤕 🤑 🤠 😈 👿 👹 👺 🤡 💩 👻 💀 ☠️ 👽 👾 🤖 🎃'},
+  {icon:'👍',emojis:'👋 🤚 🖐 ✋ 🖖 👌 🤌 🤏 ✌️ 🤞 🤟 🤘 🤙 👈 👉 👆 🖕 👇 ☝️ 👍 👎 ✊ 👊 🤛 🤜 👏 🙌 👐 🤲 🤝 🙏 ✍️ 💅 🤳 💪 🦾 👀 👁 👂 🦻 👃 👣 🧠 🫀 🫁 🦷 🦴 👅 👄 💋 🩸'},
+  {icon:'🧑',emojis:'👶 🧒 👦 👧 🧑 👨 👩 🧓 👴 👵 🙍 🙎 🙅 🙆 💁 🙋 🧏 🙇 🤦 🤷 👮 🕵️ 💂 👷 🤴 👸 👳 👲 🧕 🤵 👰 🤰 🤱 👼 🎅 🤶 🦸 🦹 🧙 🧚 🧛 🧜 🧝 🧞 🧟 💆 💇 🚶 🧍 🧎 🏃 💃 🕺 👯 🧖 🧗 🤺 🏇 ⛷ 🏂 🏌️ 🏄 🚣 🏊 ⛹️ 🏋️ 🚴 🚵 🤸 🤼 🤽 🤾 🤹 🧘 👪 👫 👬 👭 💏 💑'},
+  {icon:'🐶',emojis:'🐶 🐱 🐭 🐹 🐰 🦊 🐻 🐼 🐨 🐯 🦁 🐮 🐷 🐽 🐸 🐵 🙈 🙉 🙊 🐒 🐔 🐧 🐦 🐤 🐣 🐥 🦆 🦅 🦉 🦇 🐺 🐗 🐴 🦄 🐝 🐛 🦋 🐌 🐞 🐜 🦟 🦗 🕷 🦂 🐢 🐍 🦎 🦖 🦕 🐙 🦑 🦐 🦞 🦀 🐡 🐠 🐟 🐬 🐳 🐋 🦈 🐊 🐅 🐆 🦓 🦍 🦧 🐘 🦛 🦏 🐪 🐫 🦒 🦘 🐃 🐂 🐄 🐎 🐖 🐏 🐑 🦙 🐐 🦌 🐕 🐩 🦮 🐈 🐓 🦃 🦚 🦜 🦢 🦩 🕊 🐇 🦝 🦨 🦡 🦥 🦦 🦫 🐁 🐀 🐿 🦔 🐾 🐉 🐲 🌵 🎄 🌲 🌳 🌴 🌱 🌿 ☘️ 🍀 🎍 🎋 🍃 🍂 🍁 🍄 🌾 💐 🌷 🌹 🥀 🌺 🌸 🌼 🌻'},
+  {icon:'🍎',emojis:'🍏 🍎 🍐 🍊 🍋 🍌 🍉 🍇 🍓 🫐 🍈 🍒 🍑 🥭 🍍 🥥 🥝 🍅 🍆 🥑 🥦 🥬 🥒 🌶 🫑 🌽 🥕 🫒 🧄 🧅 🥔 🍠 🥐 🥯 🍞 🥖 🥨 🧀 🥚 🍳 🧈 🥞 🧇 🥓 🥩 🍗 🍖 🌭 🍔 🍟 🍕 🥪 🥙 🧆 🌮 🌯 🥗 🥘 🫕 🥫 🍝 🍜 🍲 🍛 🍣 🍱 🥟 🦪 🍤 🍙 🍚 🍘 🍥 🥠 🥮 🍢 🍡 🍧 🍨 🍦 🥧 🧁 🍰 🎂 🍮 🍭 🍬 🍫 🍿 🍩 🍪 🌰 🥜 🍯 🥛 🍼 🫖 ☕️ 🍵 🧃 🥤 🧋 🍶 🍺 🍻 🥂 🍷 🥃 🍸 🍹 🧉 🍾 🧊 🥄 🍴 🍽 🥣 🥡 🥢 🧂'},
+  {icon:'⚽️',emojis:'⚽️ 🏀 🏈 ⚾️ 🥎 🎾 🏐 🏉 🥏 🎱 🪀 🏓 🏸 🏒 🏑 🥍 🏏 🥅 ⛳️ 🪁 🏹 🎣 🤿 🥊 🥋 🎽 🛹 🛼 🛷 ⛸ 🥌 🎿 🏆 🥇 🥈 🥉 🏅 🎖 🏵 🎗 🎫 🎟 🎪 🤹 🎭 🩰 🎨 🎬 🎤 🎧 🎼 🎹 🥁 🪘 🎷 🎺 🪗 🎸 🪕 🎻 🎲 ♟ 🎯 🎳 🎮 🎰 🧩'},
+  {icon:'🚗',emojis:'🚗 🚕 🚙 🚌 🚎 🏎 🚓 🚑 🚒 🚐 🛻 🚚 🚛 🚜 🦯 🦽 🦼 🛴 🚲 🛵 🏍 🛺 🚨 🚔 🚍 🚘 🚖 🚡 🚠 🚟 🚃 🚋 🚞 🚝 🚄 🚅 🚈 🚂 🚆 🚇 🚊 🚉 ✈️ 🛫 🛬 🛩 💺 🛰 🚀 🛸 🚁 🛶 ⛵️ 🚤 🛥 🛳 ⛴ 🚢 ⚓️ ⛽️ 🚧 🚦 🚥 🚏 🗺 🗿 🗽 🗼 🏰 🏯 🏟 🎡 🎢 🎠 ⛲️ ⛱ 🏖 🏝 🏜 🌋 ⛰ 🏔 🗻 🏕 ⛺️ 🏠 🏡 🏢 🏬 🏣 🏤 🏥 🏦 🏨 🏪 🏫 🏩 💒 🏛 ⛪️ 🕌 🕍 🛕 🕋 ⛩'},
+  {icon:'💡',emojis:'⌚️ 📱 💻 ⌨️ 🖥 🖨 🖱 🖲 💽 💾 💿 📀 📷 📸 📹 🎥 📽 📞 ☎️ 📟 📠 📺 📻 🎙 🎚 🎛 🧭 ⏱ ⏲ ⏰ 🕰 ⌛️ ⏳ 📡 🔋 🔌 💡 🔦 🕯 🪔 🧯 🛢 💸 💵 💴 💶 💷 🪙 💰 💳 💎 ⚖️ 🪜 🧰 🔧 🔨 ⚒ 🛠 ⛏ 🔩 ⚙️ 🧱 ⛓ 🧲 🔫 💣 🧨 🪓 🔪 🗡 ⚔️ 🛡 🚬 ⚰️ 🪦 🏺 🔮 📿 🧿 💈 ⚗️ 🔭 🔬 🕳 🩹 🩺 💊 💉 🩸 🧬 🦠 🧫 🧪 🌡 🧹 🧺 🧻 🚽 🚰 🚿 🛁 🛀 🧼 🪥 🪒 🧽 🧴 🛎 🔑 🗝 🚪 🪑 🛋 🛏 🛌 🧸 🖼 🛍 🛒 🎁 🎈 🎏 🎀 🎊 🎉 🎎 🏮 🎐 🧧 ✉️ 📩 📨 📧 💌 📥 📤 📦 🏷 📪 📫 📬 📭 📮 📯 📜 📃 📄 📑 📊 📈 📉 🗒 🗓 📆 📅 📇 🗃 🗳 🗄 📋 📁 📂 🗂 🗞 📰 📓 📔 📒 📕 📗 📘 📙 📚 📖 🔖 🧷 🔗 📎 🖇 📐 📏 🧮 📌 📍 ✂️ 🖊 🖋 ✒️ 🖌 🖍 📝 ✏️ 🔍 🔎 🔏 🔐 🔒 🔓'},
+  {icon:'❤️',emojis:'❤️ 🧡 💛 💚 💙 💜 🖤 🤍 🤎 💔 ❣️ 💕 💞 💓 💗 💖 💘 💝 💟 ☮️ ✝️ ☪️ 🕉 ☸️ ✡️ 🔯 🕎 ☯️ ☦️ 🛐 ⛎ ♈️ ♉️ ♊️ ♋️ ♌️ ♍️ ♎️ ♏️ ♐️ ♑️ ♒️ ♓️ 🆔 ⚛️ 🉑 ☢️ ☣️ ✴️ 🆚 💮 🉐 ㊙️ ㊗️ 🈴 🈵 🈹 🈲 🅰️ 🅱️ 🆎 🆑 🅾️ 🆘 ❌ ⭕️ 🛑 ⛔️ 📛 🚫 💯 💢 ♨️ 🚷 🚯 🚳 🚱 🔞 📵 🚭 ❗️ ❕ ❓ ❔ ‼️ ⁉️ 🔅 🔆 〽️ ⚠️ 🚸 🔱 ⚜️ 🔰 ♻️ ✅ 🈯️ 💹 ❇️ ✳️ ❎ 🌐 💠 Ⓜ️ 🌀 💤 🏧 🚾 ♿️ 🅿️ 🈳 🈂️ 🛂 🛃 🛄 🛅 🚹 🚺 🚼 🚻 🚮 🎦 📶 🈁 🔣 ℹ️ 🔤 🔡 🔠 🆖 🆗 🆙 🆒 🆕 🆓 0️⃣ 1️⃣ 2️⃣ 3️⃣ 4️⃣ 5️⃣ 6️⃣ 7️⃣ 8️⃣ 9️⃣ 🔟 ▶️ ⏸ ⏯ ⏹ ⏺ ⏭ ⏮ ⏩ ⏪ 🔀 🔁 🔂 ◀️ 🔼 🔽 ⏫ ⏬ ➡️ ⬅️ ⬆️ ⬇️ ↗️ ↘️ ↙️ ↖️ ↕️ ↔️ ↩️ ↪️ ⤴️ ⤵️ 🔃 🔄 #️⃣ *️⃣ ✔️ ➕ ➖ ➗ ✖️ ♾ 〰️ ➰ ➿ ✳️ ✴️ ❇️ © ® ™'}
+];
+let _emojiActiveCat=0;
+function toggleEmojiPicker(){
+  const p=el('emoji-panel');if(!p)return;
+  const show=(p.style.display==='none'||!p.style.display);
+  p.style.display=show?'block':'none';
+  if(show&&!p.dataset.built){buildEmojiPanel();p.dataset.built='1';}
+}
+function buildEmojiPanel(){
+  const cats=el('emoji-cats');
+  cats.innerHTML=EMOJI_CATS.map((c,i)=>'<button type="button" class="emoji-cat'+(i===_emojiActiveCat?' active':'')+'" onclick="showEmojiCat('+i+')">'+c.icon+'</button>').join('');
+  showEmojiCat(_emojiActiveCat);
+}
+function showEmojiCat(i){
+  _emojiActiveCat=i;
+  document.querySelectorAll('#emoji-cats .emoji-cat').forEach((b,j)=>b.className='emoji-cat'+(j===i?' active':''));
+  const list=EMOJI_CATS[i].emojis.trim().split(/\s+/);
+  el('emoji-grid').innerHTML=list.map(e=>'<button type="button" onclick="insertEmoji(\''+e+'\')">'+e+'</button>').join('');
+}
+function insertEmoji(ch){
+  const ta=el('compose-body');if(!ta)return;
+  const start=(ta.selectionStart!=null)?ta.selectionStart:ta.value.length;
+  const end=(ta.selectionEnd!=null)?ta.selectionEnd:ta.value.length;
+  ta.value=ta.value.slice(0,start)+ch+ta.value.slice(end);
+  const pos=start+ch.length;
+  ta.selectionStart=ta.selectionEnd=pos;
+  ta.focus();
+  updateCharCount();
 }
 
 // ── Tabs ──────────────────────────────────────────────────────────────────
