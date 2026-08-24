@@ -1415,36 +1415,49 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
 
         address = normalize_address(address)
 
-        with _data_lock:
-            messages = load_messages()
-            inbox    = messages.get(address, [])
+        try:
+            with _data_lock:
+                messages = load_messages()
+                inbox    = messages.get(address, [])
 
-            updated = False
-            for msg in inbox:
-                if not msg.get("delivered"):
-                    msg["delivered"] = True
-                    updated = True
-            if updated:
-                save_messages(messages)
+                updated = False
+                for msg in inbox:
+                    if not msg.get("delivered"):
+                        msg["delivered"] = True
+                        updated = True
+                if updated:
+                    save_messages(messages)
 
-        result = [
-            {
-                # v2 field names (used by orcamail-v2.html)
-                "id":               m.get("id") or m.get("messageId", ""),
-                "from":             m["from"],
-                "encrypted_body":   m.get("encrypted_body") or m.get("encryptedContent", ""),
-                "subject":          m.get("subject", "(no subject)"),
-                "preview":          m.get("preview", ""),
-                "timestamp":        m["timestamp"],
-                "read":             m.get("read", False),
-                # v1 compat fields
-                "messageId":        m.get("messageId") or m.get("id", ""),
-                "encryptedContent": m.get("encryptedContent") or m.get("encrypted_body", ""),
-            }
-            for m in inbox
-        ]
+            # Build the response defensively: a single malformed or legacy message
+            # must never be able to crash the whole inbox (previously an unguarded
+            # m["from"] / m["timestamp"] KeyError would 500 the endpoint, leaving the
+            # client stuck on "Loading messages…" or "Could not load inbox").
+            result = []
+            for m in inbox:
+                try:
+                    result.append({
+                        # v2 field names (used by orcamail-v2.html)
+                        "id":               m.get("id") or m.get("messageId", ""),
+                        "from":             m.get("from") or m.get("sender", ""),
+                        "encrypted_body":   m.get("encrypted_body") or m.get("encryptedContent", ""),
+                        "subject":          m.get("subject", "(no subject)"),
+                        "preview":          m.get("preview", ""),
+                        "timestamp":        m.get("timestamp") or m.get("ts") or 0,
+                        "read":             m.get("read", False),
+                        # v1 compat fields
+                        "messageId":        m.get("messageId") or m.get("id", ""),
+                        "encryptedContent": m.get("encryptedContent") or m.get("encrypted_body", ""),
+                    })
+                except Exception as e:
+                    print(f"[inbox] skipping malformed message for {address}: {e}")
+                    continue
 
-        self._send_json({"messages": result, "count": len(result)})
+            self._send_json({"messages": result, "count": len(result)})
+        except Exception as e:
+            # Last-resort guard: return a clean JSON error the client can show as
+            # "Could not load inbox — Try Again" instead of hanging the connection.
+            print(f"[inbox] unexpected error for {address}: {e}")
+            self._send_error("Could not load inbox", 500)
 
     # ── POST /api/delete ─────────────────────────────────────────────────────
 
