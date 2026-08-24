@@ -175,6 +175,37 @@ body.app-mode{height:100dvh;max-height:100dvh;overflow:hidden;}
   .keiko-android-install a { display:inline-block; background:#00d4ff; color:#000; font-weight:800; font-size:15px; padding:10px 18px; border-radius:10px; text-decoration:none; }
   .keiko-android-install a:hover { opacity:0.9; }
   .keiko-android-install p { margin-top:6px; font-size:12px; opacity:0.65; }
+
+  /* ── Recipient chips + autocomplete (compose) ── */
+  .chip-box{display:flex;flex-wrap:wrap;gap:6px;align-items:center;width:100%;min-height:48px;padding:8px 10px;border:1.5px solid var(--border2);border-radius:12px;background:var(--bg3);cursor:text;transition:border-color 0.15s;}
+  .chip-box:focus-within{border-color:var(--teal);}
+  .chip{display:inline-flex;align-items:center;gap:6px;background:rgba(6,182,212,0.14);border:1px solid rgba(6,182,212,0.3);color:var(--text);border-radius:999px;padding:5px 8px 5px 11px;font-size:13px;max-width:100%;}
+  .chip .chip-label{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px;}
+  .chip .chip-sub{font-family:monospace;font-size:11px;color:var(--text-muted);}
+  .chip .chip-x{cursor:pointer;border:none;background:none;color:var(--text-muted);font-size:16px;line-height:1;padding:0 2px;border-radius:50%;}
+  .chip .chip-x:hover{color:#f87171;}
+  .chip-input{flex:1;min-width:120px;border:none;background:none;outline:none;color:var(--text);font-size:16px;font-family:inherit;padding:4px 2px;}
+  .chip-input::placeholder{color:var(--text-dim);}
+  .autocomplete{position:relative;margin-top:4px;background:var(--bg3);border:1px solid var(--border2);border-radius:12px;overflow:hidden;max-height:220px;overflow-y:auto;}
+  .ac-item{padding:10px 14px;cursor:pointer;display:flex;flex-direction:column;gap:2px;border-bottom:1px solid var(--border);}
+  .ac-item:last-child{border-bottom:none;}
+  .ac-item:hover,.ac-item.active{background:rgba(6,182,212,0.10);}
+  .ac-name{font-size:14px;font-weight:600;color:var(--text);}
+  .ac-addr{font-size:12px;font-family:monospace;color:var(--text-muted);}
+  .ac-group{font-size:11px;color:var(--teal);}
+  .recip-actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
+
+  /* ── Contacts tab ── */
+  .contact-group-title{font-size:13px;font-weight:700;color:var(--teal);text-transform:uppercase;letter-spacing:0.04em;margin:18px 0 8px;display:flex;align-items:center;justify-content:space-between;}
+  .contact-group-title .cg-count{color:var(--text-dim);font-weight:600;}
+  .contact-item{display:flex;align-items:center;gap:12px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 14px;margin-bottom:8px;}
+  .contact-avatar{width:38px;height:38px;border-radius:50%;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:15px;color:#fff;background:var(--teal-dark);}
+  .contact-main{flex:1;min-width:0;}
+  .contact-name{font-size:15px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .contact-addr{font-size:12px;font-family:monospace;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .contact-actions{display:flex;gap:6px;flex-shrink:0;}
+  .icon-btn{border:1px solid var(--border2);background:var(--bg3);color:var(--text-muted);border-radius:9px;padding:7px 9px;font-size:14px;cursor:pointer;line-height:1;}
+  .icon-btn:hover{border-color:var(--teal);color:var(--teal);}
   </style>
 </head>
 <body>
@@ -264,8 +295,16 @@ body.app-mode{height:100dvh;max-height:100dvh;overflow:hidden;}
       </div>
       <div class="card compose-form" id="compose-form-wrap">
         <div class="form-group">
-          <label class="form-label">To (wallet address)</label>
-          <input type="text" id="compose-to" class="form-input" placeholder="0x..." autocomplete="off">
+          <label class="form-label">To</label>
+          <div id="recipient-chips" class="chip-box" onclick="focusRecipInput()">
+            <input type="text" id="compose-to" class="chip-input" placeholder="Type a name or paste 0x… address" autocomplete="off" oninput="onRecipInput()" onkeydown="onRecipKey(event)" onblur="hideAutocompleteSoon()">
+          </div>
+          <div id="recip-autocomplete" class="autocomplete" style="display:none"></div>
+          <div class="recip-actions">
+            <select id="group-picker" class="form-select" style="font-size:13px;flex:1" onchange="addGroupToRecipients(this.value)">
+              <option value="">➕ Add a whole group…</option>
+            </select>
+          </div>
         </div>
         <div class="form-group">
           <label class="form-label">Subject</label>
@@ -279,6 +318,21 @@ body.app-mode{height:100dvh;max-height:100dvh;overflow:hidden;}
         <div class="encrypt-badge">🔒 Subject + body encrypted end-to-end — only the recipient can read them</div>
         <div id="compose-sends-left" class="text-muted"></div>
         <button class="btn btn-primary" style="padding:15px;font-size:16px" onclick="sendMessage()">📤 Send Encrypted Message</button>
+      </div>
+    </div>
+
+    <!-- CONTACTS TAB -->
+    <div id="tab-contacts" class="tab-section" style="display:none">
+      <div class="section-header">
+        <h2 class="section-title">👥 Contacts</h2>
+        <button class="btn btn-primary btn-sm" onclick="openContactEditor()">➕ Add</button>
+      </div>
+      <div class="info-box mb-4" style="font-size:13px">🔒 Your contacts are stored <strong>only on this device</strong> — names and groups never leave your browser or reach any server.</div>
+      <div id="contacts-list"></div>
+      <div style="margin-top:18px;display:flex;gap:8px;justify-content:center">
+        <button class="btn btn-outline btn-sm" onclick="exportContacts()">⬇️ Export</button>
+        <button class="btn btn-outline btn-sm" onclick="el('import-contacts-file').click()">⬆️ Import</button>
+        <input type="file" id="import-contacts-file" accept="application/json,.json" style="display:none" onchange="importContacts(this.files[0])">
       </div>
     </div>
 
@@ -347,6 +401,10 @@ body.app-mode{height:100dvh;max-height:100dvh;overflow:hidden;}
     <button class="bottom-nav-btn" id="nav-btn-compose" onclick="showTab('compose')">
       <span class="nav-icon">✏️</span>
       <span class="nav-label">Compose</span>
+    </button>
+    <button class="bottom-nav-btn" id="nav-btn-contacts" onclick="showTab('contacts')">
+      <span class="nav-icon">👥</span>
+      <span class="nav-label">Contacts</span>
     </button>
     <button class="bottom-nav-btn" id="nav-btn-settings" onclick="showTab('settings')">
       <span class="nav-icon">⚙️</span>
@@ -657,6 +715,36 @@ body.app-mode{height:100dvh;max-height:100dvh;overflow:hidden;}
   </div>
 </div>
 
+<!-- MODAL: CONTACT EDITOR -->
+<div id="modal-contact" class="modal-overlay" style="display:none" onclick="overlayClose(event,'modal-contact')">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="contact-editor-title">Add Contact</h3>
+      <button class="modal-close" onclick="closeModal('modal-contact')">✕</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="contact-edit-id">
+      <div class="form-group">
+        <label class="form-label">Name</label>
+        <input type="text" id="contact-name" class="form-input" placeholder="e.g. Alice" autocomplete="off">
+      </div>
+      <div class="form-group" style="margin-top:12px">
+        <label class="form-label">Wallet address</label>
+        <input type="text" id="contact-address" class="form-input" placeholder="0x…" autocomplete="off">
+      </div>
+      <div class="form-group" style="margin-top:12px">
+        <label class="form-label">Group</label>
+        <select id="contact-group" class="form-select" onchange="onContactGroupChange()">
+          <option value="Ungrouped">Ungrouped</option>
+          <option value="__new__">➕ New group…</option>
+        </select>
+        <input type="text" id="contact-group-new" class="form-input" placeholder="New group name" style="display:none;margin-top:8px" autocomplete="off">
+      </div>
+      <button class="btn btn-primary" style="width:100%;margin-top:18px;padding:13px" onclick="saveContactFromEditor()">💾 Save Contact</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
 <script type="module">
@@ -687,6 +775,7 @@ const S = {
   messages: [],
   currentMsgId: null,
   replyTo: null,
+  recipients: [],    // compose: [{address, name}]
   _signingKey: null  // cached after first sign — avoids asking wallet every message open
 };
 
@@ -780,8 +869,8 @@ function afterConnect(){
   el('settings-wallet').textContent=S.addr;
   // If ?to= param in URL, pre-fill compose and open it
   const _toParam=new URLSearchParams(window.location.search).get('to');
-  if(_toParam){
-    el('compose-to').value=_toParam;
+  if(_toParam&&ethers.isAddress(_toParam)){
+    addRecipient(_toParam);
     showTab('compose');
   } else {
     showTab('inbox');
@@ -1166,8 +1255,9 @@ function replyToMessage(){
   const msg=S.messages.find(m=>m.id===S.currentMsgId);
   if(!msg)return;
   closeModal('modal-message');
+  S.recipients=[];
+  addRecipient(msg.from);
   showTab('compose');
-  el('compose-to').value=msg.from;
   const subj=msg._decryptedSubject||((msg.subject&&msg.subject!=='(encrypted)')?msg.subject:'');
   el('compose-subject').value=subj.startsWith('Re: ')?subj:('Re: '+subj);
   el('compose-body').focus();
@@ -1192,54 +1282,299 @@ function updateCharCount(){
   el('char-count').style.color=v>2000?'#dc2626':'';
 }
 
+// ── Contacts store (local-only; never leaves this device) ──────────────────
+const CONTACTS_KEY='orcamail_contacts_v1';
+function loadContactStore(){
+  try{
+    const raw=localStorage.getItem(CONTACTS_KEY);
+    if(raw){const s=JSON.parse(raw);if(s&&Array.isArray(s.contacts)){if(!Array.isArray(s.groups))s.groups=[];return s;}}
+  }catch(e){}
+  return {contacts:[],groups:[]};
+}
+function saveContactStore(s){
+  try{localStorage.setItem(CONTACTS_KEY,JSON.stringify(s));}
+  catch(e){toast('Could not save contact (storage blocked)',true);}
+}
+function allGroups(store){
+  const set=new Set(['Ungrouped']);
+  (store.groups||[]).forEach(g=>set.add(g));
+  store.contacts.forEach(c=>set.add(c.group||'Ungrouped'));
+  return Array.from(set);
+}
+function contactByAddress(addr){
+  if(!addr)return null;
+  const a=addr.toLowerCase();
+  return loadContactStore().contacts.find(c=>c.address.toLowerCase()===a)||null;
+}
+function newContactId(){return 'c'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);}
+
+// ── Contacts UI ────────────────────────────────────────────────────────────
+function renderContacts(){
+  const store=loadContactStore();
+  const c=el('contacts-list');
+  if(!store.contacts.length){
+    c.innerHTML='<div class="empty-state"><div class="empty-state-icon">👥</div><h3>No contacts yet</h3><p>Add wallet addresses with friendly names and sort them into groups like Work or Friends.</p></div>';
+    return;
+  }
+  let html='';
+  allGroups(store).forEach(g=>{
+    const members=store.contacts.filter(ct=>(ct.group||'Ungrouped')===g).sort((a,b)=>a.name.localeCompare(b.name));
+    if(!members.length)return;
+    html+=`<div class="contact-group-title"><span>${esc(g)}</span><span class="cg-count">${members.length}</span></div>`;
+    members.forEach(ct=>{
+      const initial=((ct.name||'?').trim().charAt(0)||'?').toUpperCase();
+      html+=`<div class="contact-item">
+        <div class="contact-avatar">${esc(initial)}</div>
+        <div class="contact-main">
+          <div class="contact-name">${esc(ct.name)}</div>
+          <div class="contact-addr">${esc(fmtAddr(ct.address))}</div>
+        </div>
+        <div class="contact-actions">
+          <button class="icon-btn" title="Message" onclick="messageContact('${ct.id}')">✉️</button>
+          <button class="icon-btn" title="Edit" onclick="openContactEditor('${ct.id}')">✏️</button>
+          <button class="icon-btn" title="Delete" onclick="deleteContact('${ct.id}')">🗑️</button>
+        </div>
+      </div>`;
+    });
+  });
+  c.innerHTML=html;
+}
+function openContactEditor(id){
+  const store=loadContactStore();
+  el('contact-edit-id').value=id||'';
+  const sel=el('contact-group');
+  sel.innerHTML=allGroups(store).map(g=>`<option value="${esc(g)}">${esc(g)}</option>`).join('')+'<option value="__new__">➕ New group…</option>';
+  el('contact-group-new').style.display='none';el('contact-group-new').value='';
+  if(id){
+    const ct=store.contacts.find(c=>c.id===id);
+    if(ct){el('contact-editor-title').textContent='Edit Contact';el('contact-name').value=ct.name;el('contact-address').value=ct.address;sel.value=ct.group||'Ungrouped';}
+  }else{
+    el('contact-editor-title').textContent='Add Contact';el('contact-name').value='';el('contact-address').value='';sel.value='Ungrouped';
+  }
+  openModal('modal-contact');
+}
+function onContactGroupChange(){
+  el('contact-group-new').style.display=el('contact-group').value==='__new__'?'block':'none';
+}
+function saveContactFromEditor(){
+  const id=el('contact-edit-id').value;
+  const name=(el('contact-name').value||'').trim();
+  const address=(el('contact-address').value||'').trim();
+  let group=el('contact-group').value;
+  if(group==='__new__')group=(el('contact-group-new').value||'').trim()||'Ungrouped';
+  if(!name){toast('Enter a name',true);return;}
+  if(!ethers.isAddress(address)){toast('Enter a valid wallet address',true);return;}
+  const store=loadContactStore();
+  const clash=store.contacts.find(c=>c.address.toLowerCase()===address.toLowerCase()&&c.id!==id);
+  if(clash){toast('That address is already saved as "'+clash.name+'"',true);return;}
+  if(group&&group!=='Ungrouped'&&!store.groups.includes(group))store.groups.push(group);
+  if(id){
+    const ct=store.contacts.find(c=>c.id===id);
+    if(ct){ct.name=name;ct.address=address;ct.group=group;}
+  }else{
+    store.contacts.push({id:newContactId(),name,address,group});
+  }
+  saveContactStore(store);
+  closeModal('modal-contact');
+  renderContacts();
+  toast('✅ Contact saved');
+}
+function deleteContact(id){
+  const store=loadContactStore();
+  const ct=store.contacts.find(c=>c.id===id);
+  if(!ct)return;
+  if(!confirm('Delete "'+ct.name+'"? This only removes it from this device.'))return;
+  store.contacts=store.contacts.filter(c=>c.id!==id);
+  saveContactStore(store);
+  renderContacts();
+  toast('Contact deleted');
+}
+function messageContact(id){
+  const ct=loadContactStore().contacts.find(c=>c.id===id);
+  if(!ct)return;
+  addRecipient(ct.address,ct.name);
+  showTab('compose');
+}
+function exportContacts(){
+  const store=loadContactStore();
+  if(!store.contacts.length){toast('No contacts to export',true);return;}
+  const blob=new Blob([JSON.stringify(store,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');a.href=url;a.download='orcamail-contacts.json';a.click();
+  setTimeout(()=>URL.revokeObjectURL(url),1000);
+  toast('Exported '+store.contacts.length+' contacts');
+}
+function importContacts(file){
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=()=>{
+    try{
+      const data=JSON.parse(reader.result);
+      const incoming=Array.isArray(data)?data:(data.contacts||[]);
+      if(!Array.isArray(incoming))throw new Error('bad');
+      const store=loadContactStore();
+      let added=0;
+      incoming.forEach(ic=>{
+        if(!ic||!ic.address||!ethers.isAddress(ic.address))return;
+        if(store.contacts.some(c=>c.address.toLowerCase()===ic.address.toLowerCase()))return;
+        const group=(ic.group||'Ungrouped');
+        if(group!=='Ungrouped'&&!store.groups.includes(group))store.groups.push(group);
+        store.contacts.push({id:newContactId(),name:ic.name||fmtAddr(ic.address),address:ic.address,group});
+        added++;
+      });
+      saveContactStore(store);
+      renderContacts();
+      toast('✅ Imported '+added+' new contact'+(added===1?'':'s'));
+    }catch(e){toast('Could not read that file',true);}
+  };
+  reader.readAsText(file);
+  el('import-contacts-file').value='';
+}
+
+// ── Recipient chips (compose) ──────────────────────────────────────────────
+let _acItems=[];
+function focusRecipInput(){el('compose-to').focus();}
+function renderChips(){
+  const box=el('recipient-chips');if(!box)return;
+  const input=el('compose-to');
+  box.querySelectorAll('.chip').forEach(n=>n.remove());
+  S.recipients.forEach(r=>{
+    const chip=document.createElement('span');
+    chip.className='chip';
+    const label=r.name||fmtAddr(r.address);
+    chip.innerHTML=`<span class="chip-label">${esc(label)}</span><span class="chip-sub">${esc(fmtAddr(r.address))}</span><button class="chip-x" title="Remove">✕</button>`;
+    chip.querySelector('.chip-x').onclick=(e)=>{e.stopPropagation();removeRecipient(r.address);};
+    box.insertBefore(chip,input);
+  });
+}
+function addRecipient(address,name){
+  if(!address||!ethers.isAddress(address)){toast('Invalid address',true);return false;}
+  if(S.recipients.some(r=>r.address.toLowerCase()===address.toLowerCase()))return false;
+  const known=contactByAddress(address);
+  S.recipients.push({address,name:name||(known?known.name:'')});
+  renderChips();
+  return true;
+}
+function removeRecipient(address){
+  S.recipients=S.recipients.filter(r=>r.address.toLowerCase()!==address.toLowerCase());
+  renderChips();
+}
+function onRecipInput(){
+  const val=(el('compose-to').value||'').trim();
+  const q=val.toLowerCase();
+  const ac=el('recip-autocomplete');
+  _acItems=[];
+  if(!q){ac.style.display='none';ac.innerHTML='';return;}
+  const store=loadContactStore();
+  if(ethers.isAddress(val)&&!S.recipients.some(r=>r.address.toLowerCase()===val.toLowerCase())){
+    _acItems.push({address:val,name:'',label:'Add this address',addr:fmtAddr(val),group:''});
+  }
+  store.contacts
+    .filter(c=>!S.recipients.some(r=>r.address.toLowerCase()===c.address.toLowerCase())&&(c.name.toLowerCase().includes(q)||c.address.toLowerCase().includes(q)))
+    .slice(0,6)
+    .forEach(c=>_acItems.push({address:c.address,name:c.name,label:c.name,addr:fmtAddr(c.address),group:c.group||'Ungrouped'}));
+  if(!_acItems.length){ac.style.display='none';ac.innerHTML='';return;}
+  ac.innerHTML=_acItems.map((it,i)=>`<div class="ac-item" onmousedown="pickAutocomplete(${i})"><span class="ac-name">${esc(it.label)}</span><span class="ac-addr">${esc(it.addr)}</span>${it.group?`<span class="ac-group">${esc(it.group)}</span>`:''}</div>`).join('');
+  ac.style.display='block';
+}
+function pickAutocomplete(i){
+  const it=_acItems[i];if(!it)return;
+  addRecipient(it.address,it.name);
+  el('compose-to').value='';
+  el('recip-autocomplete').style.display='none';
+  _acItems=[];
+  el('compose-to').focus();
+}
+function onRecipKey(e){
+  if(e.key==='Enter'||e.key===','){
+    e.preventDefault();
+    if(_acItems.length){pickAutocomplete(0);return;}
+    const val=(el('compose-to').value||'').trim().replace(/,$/,'');
+    if(!val)return;
+    if(ethers.isAddress(val)){addRecipient(val);el('compose-to').value='';el('recip-autocomplete').style.display='none';}
+    else{toast('No matching contact, and that is not a valid address',true);}
+  }else if(e.key==='Backspace'&&!el('compose-to').value&&S.recipients.length){
+    removeRecipient(S.recipients[S.recipients.length-1].address);
+  }
+}
+function hideAutocompleteSoon(){setTimeout(()=>{el('recip-autocomplete').style.display='none';},150);}
+function populateGroupPicker(){
+  const sel=el('group-picker');if(!sel)return;
+  const store=loadContactStore();
+  const groups=allGroups(store).filter(g=>store.contacts.some(c=>(c.group||'Ungrouped')===g));
+  sel.innerHTML='<option value="">➕ Add a whole group…</option>'+groups.map(g=>{
+    const n=store.contacts.filter(c=>(c.group||'Ungrouped')===g).length;
+    return `<option value="${esc(g)}">${esc(g)} (${n})</option>`;
+  }).join('');
+}
+function addGroupToRecipients(group){
+  if(!group)return;
+  const store=loadContactStore();
+  let added=0;
+  store.contacts.filter(c=>(c.group||'Ungrouped')===group).forEach(c=>{if(addRecipient(c.address,c.name))added++;});
+  el('group-picker').value='';
+  toast(added?('Added '+added+' from '+group):('Everyone in '+group+' is already added'));
+}
+
 async function sendMessage(){
   if(!S.addr||!S.signer){toast('Connect wallet first',true);return;}
-  const to=(el('compose-to').value||'').trim();
+  // Pull in any address still typed in the box
+  const pending=(el('compose-to').value||'').trim().replace(/,$/,'');
+  if(pending&&ethers.isAddress(pending)){addRecipient(pending);el('compose-to').value='';el('recip-autocomplete').style.display='none';}
   const subject=(el('compose-subject').value||'').trim();
   const body=(el('compose-body').value||'').trim();
 
-  if(!to||!ethers.isAddress(to)){toast('Enter a valid wallet address',true);return;}
+  if(!S.recipients.length){toast('Add at least one recipient',true);return;}
   if(!body){toast('Message cannot be empty',true);return;}
   if(body.length>2000){toast('Message too long (max 2000 characters)',true);return;}
-
-  if(!S.isPaid&&S.freeSendsLeft<=0){
-    openPaymentModal();return;
-  }
+  if(!S.isPaid&&S.freeSendsLeft<=0){openPaymentModal();return;}
 
   const btn=document.querySelector('#tab-compose .btn-primary');
-  btn.textContent='⏳ Encrypting & sending...';btn.disabled=true;
+  btn.disabled=true;
+  const recips=S.recipients.slice();
+  const payload=JSON.stringify({s:subject||'(no subject)',b:body,v:2});
 
-  try{
-    const pkData=await apiGet('/pubkey?address='+to);
-    if(!pkData.pubkey)throw new Error('Recipient has not opted in to OrcaMail yet. They need to connect their wallet and opt in first.');
-
-    // Encrypt subject + body as JSON payload (server never sees plaintext subject)
-    const payload=JSON.stringify({s:subject||'(no subject)',b:body,v:2});
-    const encrypted=await encryptMessage(payload,pkData.pubkey);
-
-    const auth=await signAuth('send', to.toLowerCase());
-    await apiPost('/send',{
-      from:S.addr,
-      to,
-      subject:'(encrypted)',
-      encrypted_body:encrypted,
-      preview:'',
-      message:auth.message,
-      signature:auth.signature
-    });
-
-    toast('✅ Message sent securely!');
-    el('compose-to').value='';
-    el('compose-subject').value='';
-    el('compose-body').value='';
-    updateCharCount();
-    if(!S.isPaid)S.freeSendsLeft=Math.max(0,S.freeSendsLeft-1);
-    loadStatus();
-  }catch(e){
-    toast(e.message||'Send failed',true);
-  }finally{
-    btn.textContent='📤 Send Encrypted Message';btn.disabled=false;
+  let sent=0;const skipped=[],failed=[];let outOfSends=false;
+  for(let i=0;i<recips.length;i++){
+    const r=recips[i];
+    if(!S.isPaid&&(S.freeSendsLeft-sent)<=0){outOfSends=true;break;}
+    btn.textContent=`⏳ Sending ${i+1}/${recips.length}…`;
+    try{
+      const pkData=await apiGet('/pubkey?address='+r.address);
+      if(!pkData.pubkey){skipped.push(r);continue;}
+      const encrypted=await encryptMessage(payload,pkData.pubkey);
+      const auth=await signAuth('send', r.address.toLowerCase());
+      await apiPost('/send',{
+        from:S.addr,
+        to:r.address,
+        subject:'(encrypted)',
+        encrypted_body:encrypted,
+        preview:'',
+        message:auth.message,
+        signature:auth.signature
+      });
+      sent++;
+    }catch(e){failed.push(r);}
   }
+  if(!S.isPaid)S.freeSendsLeft=Math.max(0,S.freeSendsLeft-sent);
+
+  // Report
+  const parts=[];
+  if(sent)parts.push('✅ Sent to '+sent);
+  if(skipped.length)parts.push(skipped.length+' skipped (not opted in)');
+  if(failed.length)parts.push(failed.length+' failed');
+  if(outOfSends)parts.push('stopped — out of free sends');
+  toast(parts.join(' · ')||'Nothing sent',!(sent)||failed.length>0);
+
+  if(sent){
+    // Keep any that didn't go through so she can review/retry; clear the rest
+    S.recipients=skipped.concat(failed);
+    renderChips();
+    if(!S.recipients.length){el('compose-subject').value='';el('compose-body').value='';updateCharCount();}
+    loadStatus();
+  }
+  if(outOfSends&&!S.isPaid)setTimeout(openPaymentModal,700);
+  btn.textContent='📤 Send Encrypted Message';btn.disabled=false;
 }
 
 async function encryptMessage(plaintext,recipientPubHex){
@@ -1268,11 +1603,13 @@ async function encryptMessage(plaintext,recipientPubHex){
 
 // ── Tabs ──────────────────────────────────────────────────────────────────
 function showTab(name){
-  ['inbox','compose','settings'].forEach(t=>{
+  ['inbox','compose','contacts','settings'].forEach(t=>{
     el('tab-'+t).style.display=t===name?'flex':'none';
     const btn=el('nav-btn-'+t);
     if(btn)btn.className='bottom-nav-btn'+(t===name?' active':'');
   });
+  if(name==='contacts')renderContacts();
+  if(name==='compose'){renderChips();populateGroupPicker();}
 }
 
 // ── Escape HTML ───────────────────────────────────────────────────────────
