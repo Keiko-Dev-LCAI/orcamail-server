@@ -21,8 +21,8 @@ body.app-mode{height:100dvh;max-height:100dvh;overflow:hidden;}
 #landing{min-height:100vh;background:linear-gradient(160deg,#1a2333 0%,#1e2d44 40%,#1c2f4a 70%,#1a2333 100%);display:flex;flex-direction:column;}
 .landing-nav{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;background:rgba(28,37,53,0.92);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:10;}
 .nav-brand{display:flex;align-items:center;gap:10px;}
-.nav-logo{width:42px;height:42px;border-radius:10px;object-fit:cover;}
-.nav-brand-name{font-weight:700;font-size:17px;color:var(--text);}
+.nav-logo{width:48px;height:48px;border-radius:11px;object-fit:cover;}
+.nav-brand-name{font-weight:700;font-size:21px;color:var(--text);}
 .landing-hero{flex:1;display:flex;flex-direction:column;align-items:center;text-align:center;padding:48px 24px 80px;}
 .hero-inner{width:100%;max-width:640px;display:flex;flex-direction:column;align-items:center;gap:22px;}
 .hero-logo{width:120px;height:120px;border-radius:24px;box-shadow:0 8px 40px rgba(6,182,212,0.3);object-fit:cover;}
@@ -49,7 +49,7 @@ body.app-mode{height:100dvh;max-height:100dvh;overflow:hidden;}
 .btn-outline:hover{border-color:var(--teal);color:var(--teal);}
 .btn-danger{background:rgba(239,68,68,0.15);color:#f87171;border:1px solid rgba(239,68,68,0.3);}
 .btn-danger:hover{background:rgba(239,68,68,0.25);}
-.btn-sm{padding:8px 16px;font-size:13px;border-radius:10px;}
+.btn-sm{padding:11px 20px;font-size:15px;border-radius:11px;}
 .btn-large{padding:18px 32px;font-size:19px;border-radius:16px;width:100%;max-width:100%;}
 .btn-green{background:#059669;color:white;box-shadow:0 4px 12px rgba(5,150,105,0.3);}
 .btn-teal{background:var(--teal);color:#fff;}
@@ -63,8 +63,8 @@ body.app-mode{background:var(--bg3,#0a1420);}
 .app-nav{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--bg2);border-bottom:1px solid var(--border);flex-shrink:0;z-index:10;gap:8px;}
 .nav-wallet{display:flex;align-items:center;gap:8px;flex-shrink:0;}
 .wallet-addr{font-size:11px;color:var(--text-muted);font-family:monospace;}
-.paid-badge{background:rgba(16,185,129,0.15);color:#6ee7b7;border:1px solid rgba(16,185,129,0.25);border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700;}
-.free-badge{background:rgba(245,158,11,0.12);color:#fcd34d;border:1px solid rgba(245,158,11,0.25);border-radius:999px;padding:3px 10px;font-size:11px;font-weight:700;}
+.paid-badge{background:rgba(16,185,129,0.15);color:#6ee7b7;border:1px solid rgba(16,185,129,0.25);border-radius:999px;padding:4px 12px;font-size:13px;font-weight:700;}
+.free-badge{background:rgba(245,158,11,0.12);color:#fcd34d;border:1px solid rgba(245,158,11,0.25);border-radius:999px;padding:4px 12px;font-size:13px;font-weight:700;}
 .tab-content{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;}
 .tab-section{padding:10px 14px;max-width:760px;margin:0 auto;width:100%;flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;}
 #tab-settings{overflow-y:auto;}
@@ -80,15 +80,15 @@ body.app-mode{background:var(--bg3,#0a1420);}
 .bottom-nav-btn{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:14px 4px;border:none;background:none;cursor:pointer;transition:all 0.15s;color:var(--text-dim);}
 .bottom-nav-btn.active{color:var(--teal);}
 .bottom-nav-btn:active{background:rgba(6,182,212,0.08);}
-.nav-icon{font-size:25px;line-height:1;}
-.nav-label{font-size:12px;font-weight:600;}
+.nav-icon{font-size:28px;line-height:1;}
+.nav-label{font-size:14px;font-weight:600;}
 .nav-badge{background:#ef4444;color:white;border-radius:999px;padding:1px 6px;font-size:10px;font-weight:700;min-width:16px;text-align:center;}
 
 /* CARDS */
 .card{background:var(--bg2);border-radius:16px;padding:20px;border:1px solid var(--border);box-shadow:0 2px 12px rgba(0,0,0,0.25);}
 .card+.card{margin-top:14px;}
 .section-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-shrink:0;}
-.section-title{font-size:18px;font-weight:700;color:var(--text);}
+.section-title{font-size:25px;font-weight:700;color:var(--text);}
 
 /* INBOX */
 .message-item{background:var(--bg2);border-radius:14px;padding:16px 18px;border:1px solid var(--border);margin-bottom:10px;cursor:pointer;transition:all 0.15s;position:relative;}
@@ -146,9 +146,9 @@ body.app-mode{background:var(--bg3,#0a1420);}
 
 /* EMPTY STATE */
 .empty-state{text-align:center;padding:16px;color:var(--text-muted);flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:0;}
-.empty-state-icon{font-size:44px;margin-bottom:10px;}
-.empty-state h3{font-size:16px;font-weight:700;color:var(--text);margin-bottom:6px;}
-.empty-state p{font-size:13px;margin-bottom:0;line-height:1.5;max-width:320px;}
+.empty-state-icon{font-size:64px;margin-bottom:14px;}
+.empty-state h3{font-size:22px;font-weight:700;color:var(--text);margin-bottom:8px;}
+.empty-state p{font-size:15px;margin-bottom:0;line-height:1.55;max-width:440px;}
 
 /* TOAST */
 #toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--bg4);color:var(--text);border:1px solid var(--border2);padding:10px 22px;border-radius:24px;font-size:14px;font-weight:500;z-index:200;opacity:0;transition:all 0.3s;white-space:nowrap;max-width:90vw;}
@@ -262,7 +262,7 @@ body.app-mode{background:var(--bg3,#0a1420);}
   <nav class="app-nav">
     <div class="nav-brand" onclick="goLanding()" style="cursor:pointer" title="Home">
       <img src="orcamail-logo.png" class="nav-logo" alt="OrcaMail" onerror="this.style.display='none'">
-      <span class="nav-brand-name" style="font-size:15px">OrcaMail</span>
+      <span class="nav-brand-name">OrcaMail</span>
     </div>
     <div class="nav-wallet">
       <button class="btn btn-outline btn-sm" onclick="openModal('modal-help')" title="Help" style="font-size:16px;padding:6px 10px;">❓</button>
