@@ -32,6 +32,7 @@ import hashlib
 import smtplib
 import threading
 import urllib.request
+from contextlib import contextmanager
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from urllib.parse import urlparse, parse_qs
@@ -514,7 +515,27 @@ def normalize_address(addr: str) -> str:
     return addr.lower()
 
 
-_data_lock = threading.Lock()
+# RLock: optin/status used to deadlock by calling query_subscription() while
+# already holding the lock (non-reentrant Lock). Timeout: if a holder is stuck
+# on volume I/O, callers get 503 instead of Cloudflare 524 forever.
+_data_lock = threading.RLock()
+_DATA_LOCK_TIMEOUT = float(os.environ.get("DATA_LOCK_TIMEOUT", "5"))
+
+
+class DataLockTimeout(Exception):
+    """Could not acquire _data_lock within DATA_LOCK_TIMEOUT seconds."""
+
+
+@contextmanager
+def _data_locked(timeout: float = None):
+    t = _DATA_LOCK_TIMEOUT if timeout is None else timeout
+    if not _data_lock.acquire(timeout=t):
+        raise DataLockTimeout()
+    try:
+        yield
+    finally:
+        _data_lock.release()
+
 
 def load_messages() -> dict:
     try:
@@ -639,7 +660,7 @@ def query_opted_in(address: str) -> dict:
 
     # Also check server-side fallback
     if not opted_in:
-        with _data_lock:
+        with _data_locked():
             optins = load_optins()
             if address in optins:
                 opted_in = True
@@ -661,7 +682,7 @@ def query_subscription(address: str) -> dict:
     except Exception:
         pass
 
-    with _data_lock:
+    with _data_locked():
         sends = load_sends()
         used = sends.get(normalize_address(address), {}).get("sends_used", 0)
     free_sends = max(0, FREE_SENDS_LIMIT - int(used or 0))
@@ -848,13 +869,36 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
     def do_OPTIONS(self):
         self.send_response(204)
         self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, HEAD")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
+
+    def do_HEAD(self):
+        """Avoid 501 Unsupported method — probes/CDNs often HEAD / or /api/health."""
+        parsed = urlparse(self.path)
+        path = parsed.path.rstrip("/") or "/"
+        if path in ("/", "/api/health"):
+            self.send_response(200)
+            self.send_header(
+                "Content-Type",
+                "application/json" if path.startswith("/api/") else "text/html; charset=utf-8",
+            )
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            return
+        self.send_response(200)
+        self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
 
     # ── GET routing ──────────────────────────────────────────────────────────
 
     def do_GET(self):
+        try:
+            self._do_GET()
+        except DataLockTimeout:
+            self._send_error("Server busy — try again in a moment", 503)
+
+    def _do_GET(self):
         parsed = urlparse(self.path)
         path   = parsed.path.rstrip("/")
         params = parse_qs(parsed.query)
@@ -950,6 +994,12 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
     # ── POST routing ─────────────────────────────────────────────────────────
 
     def do_POST(self):
+        try:
+            self._do_POST()
+        except DataLockTimeout:
+            self._send_error("Server busy — try again in a moment", 503)
+
+    def _do_POST(self):
         parsed = urlparse(self.path)
         path   = parsed.path.rstrip("/")
 
@@ -1134,7 +1184,7 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
             self._send_error("Invalid Ethereum address")
             return
         address = normalize_address(address)
-        with _data_lock:
+        with _data_locked():
             pubkeys = load_pubkeys()
         entry = pubkeys.get(address)
         if entry:
@@ -1158,7 +1208,7 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
 
         address = normalize_address(address)
 
-        with _data_lock:
+        with _data_locked():
             pubkeys = load_pubkeys()
             pubkeys[address] = {
                 "pubkey": pubkey,
@@ -1196,7 +1246,7 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
             self._send_error("Auth message must include pubkey", 401)
             return
 
-        with _data_lock:
+        with _data_locked():
             # Save opt-in record
             optins = load_optins()
             optins[address] = {
@@ -1247,7 +1297,7 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
             self._send_error(err or "Unauthorized", 401)
             return
 
-        with _data_lock:
+        with _data_locked():
             # Remove pubkey so new senders can't encrypt to this address
             pubkeys = load_pubkeys()
             pubkeys.pop(address, None)
@@ -1283,7 +1333,7 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
 
         address = normalize_address(address)
 
-        with _data_lock:
+        with _data_locked():
             optins = load_optins()
             if address not in optins:
                 optins[address] = {}
@@ -1376,7 +1426,7 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
             "payload_v":        2,  # encrypted JSON {s,b}
         }
 
-        with _data_lock:
+        with _data_locked():
             messages = load_messages()
             if to_addr not in messages:
                 messages[to_addr] = []
@@ -1416,7 +1466,7 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
         address = normalize_address(address)
 
         try:
-            with _data_lock:
+            with _data_locked():
                 messages = load_messages()
                 inbox    = messages.get(address, [])
 
@@ -1487,7 +1537,7 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
             self._send_error("Auth message must include messageId", 401)
             return
 
-        with _data_lock:
+        with _data_locked():
             messages = load_messages()
             inbox    = messages.get(address, [])
             before   = len(inbox)
@@ -1534,7 +1584,7 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
             self._send_error(err or "Unauthorized", 401)
             return
 
-        with _data_lock:
+        with _data_locked():
             messages = load_messages()
             inbox    = messages.get(address, [])
             for msg in inbox:
@@ -1564,7 +1614,7 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
 
         address = normalize_address(address)
 
-        with _data_lock:
+        with _data_locked():
             messages = load_messages()
             inbox    = messages.get(address, [])
             found    = False
@@ -1599,20 +1649,27 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
             return
 
         address = normalize_address(address)
+        now = int(time.time())
 
-        with _data_lock:
-            stats  = load_stats()
-            cache  = stats.setdefault("opted_in_cache", {})
-            cached = cache.get(address)
-            now    = int(time.time())
+        try:
+            # Read cache under lock only — never call query_subscription() while
+            # holding the lock (that nested acquire deadlocked the whole server).
+            cached_hit = None
+            with _data_locked():
+                stats  = load_stats()
+                cache  = stats.setdefault("opted_in_cache", {})
+                cached = cache.get(address)
+                if cached and (now - cached.get("ts", 0)) < 300:
+                    optins = load_optins()
+                    prefs  = optins.get(address, {}).get("preferences", {})
+                    cached_hit = (cached["optedIn"], prefs)
 
-            if cached and (now - cached.get("ts", 0)) < 300:
-                optins = load_optins()
-                prefs  = optins.get(address, {}).get("preferences", {})
-                sub    = query_subscription(address)
+            if cached_hit is not None:
+                opted, prefs = cached_hit
+                sub = query_subscription(address)
                 self._send_json({
-                    "optedIn":              cached["optedIn"],
-                    "opted_in":             cached["optedIn"],
+                    "optedIn":              opted,
+                    "opted_in":             opted,
                     "preferences":          prefs,
                     "is_subscribed":        sub["is_subscribed"],
                     "free_sends_remaining": sub["free_sends_remaining"],
@@ -1620,38 +1677,39 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
                 })
                 return
 
-        result = query_opted_in(address)
+            result = query_opted_in(address)
 
-        with _data_lock:
-            stats = load_stats()
-            cache = stats.setdefault("opted_in_cache", {})
-            cache[address] = {
-                "optedIn": result["optedIn"],
-                "preferences": result.get("preferences", {}),
-                "ts": now,
-            }
-            if result["optedIn"]:
-                existing_opted_in = sum(1 for v in cache.values() if v.get("optedIn"))
-                stats["total_opted_in"] = max(stats.get("total_opted_in", 0), existing_opted_in)
-            save_stats(stats)
+            with _data_locked():
+                stats = load_stats()
+                cache = stats.setdefault("opted_in_cache", {})
+                cache[address] = {
+                    "optedIn": result["optedIn"],
+                    "preferences": result.get("preferences", {}),
+                    "ts": now,
+                }
+                if result["optedIn"]:
+                    existing_opted_in = sum(1 for v in cache.values() if v.get("optedIn"))
+                    stats["total_opted_in"] = max(stats.get("total_opted_in", 0), existing_opted_in)
+                save_stats(stats)
+                optins = load_optins()
 
-        with _data_lock:
-            optins = load_optins()
-        prefs = optins.get(address, {}).get("preferences", result.get("preferences", {}))
-        sub   = query_subscription(address)
+            prefs = optins.get(address, {}).get("preferences", result.get("preferences", {}))
+            sub   = query_subscription(address)
 
-        self._send_json({
-            "optedIn":              result["optedIn"],
-            "opted_in":             result["optedIn"],
-            "preferences":          prefs,
-            "is_subscribed":        sub["is_subscribed"],
-            "free_sends_remaining": sub["free_sends_remaining"],
-        })
+            self._send_json({
+                "optedIn":              result["optedIn"],
+                "opted_in":             result["optedIn"],
+                "preferences":          prefs,
+                "is_subscribed":        sub["is_subscribed"],
+                "free_sends_remaining": sub["free_sends_remaining"],
+            })
+        except DataLockTimeout:
+            self._send_error("Server busy — try again in a moment", 503)
 
     # ── GET /api/stats ───────────────────────────────────────────────────────
 
     def _handle_stats(self):
-        with _data_lock:
+        with _data_locked():
             stats    = load_stats()
             messages = load_messages()
 
