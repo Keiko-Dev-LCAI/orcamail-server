@@ -46,6 +46,19 @@ PORT              = int(os.environ.get("PORT", 8181))
 ORCAMAIL_CONTRACT = "0x5Fd3918Bb85685A006287eEa34988026f0eC9989"  # v2 — Lightchain mainnet, chain ID 9200
 LCAI_RPC          = "https://rpc.mainnet.lightchain.ai"
 
+# Scoped CORS — override with CORS_ORIGINS env (comma-separated)
+_CORS_ORIGINS = [o.strip() for o in os.environ.get(
+    "CORS_ORIGINS",
+    "https://orcamail.ai,http://localhost:8181,http://127.0.0.1:8181"
+).split(",") if o.strip()]
+
+
+def _cors_for(handler) -> str:
+    origin = (handler.headers.get("Origin") or "").strip()
+    if origin in _CORS_ORIGINS:
+        return origin
+    return _CORS_ORIGINS[0] if _CORS_ORIGINS else "https://orcamail.ai"
+
 # DATA_DIR: point to your Railway persistent volume mount (e.g. /data).
 # Defaults to the home directory so existing local installs keep working.
 DATA_DIR          = os.environ.get("DATA_DIR", os.path.expanduser("~"))
@@ -652,24 +665,33 @@ def _encode_free_sends_remaining(address: str) -> str:
 
 
 def query_opted_in(address: str) -> dict:
-    """Call OrcaMail contract to check opt-in status.  Returns {optedIn, preferences}."""
+    """Opt-in status. Returns {optedIn, preferences}.
+
+    v2 opt-in is signature-based and stored server-side (chain-independent), so the
+    server registry is authoritative and checked FIRST — no RPC on the common path.
+    The on-chain hasOptedIn read is only a fallback for addresses not in the registry
+    (e.g. legacy users who opted in directly on the contract). This keeps optin/status
+    fast even when the mainnet RPC is slow/flaky.
+    """
+    addr = normalize_address(address)
+
+    # Fast path: server registry (authoritative for app opt-ins) — no eth_call.
+    with _data_locked():
+        optins = load_optins()
+        if addr in optins:
+            return {"optedIn": True, "preferences": {}}
+
+    # Fallback: legacy on-chain check only when not found server-side.
     if ORCAMAIL_CONTRACT == "0xTBD":
         return {"optedIn": False, "preferences": {}, "note": "contract_not_deployed"}
 
-    result_hex = _eth_call(ORCAMAIL_CONTRACT, _encode_has_opted_in(address))
     opted_in = False
+    result_hex = _eth_call(ORCAMAIL_CONTRACT, _encode_has_opted_in(addr))
     if result_hex and result_hex != "0x":
         try:
             opted_in = int(result_hex, 16) != 0
         except ValueError:
             pass
-
-    # Also check server-side fallback
-    if not opted_in:
-        with _data_locked():
-            optins = load_optins()
-            if address in optins:
-                opted_in = True
 
     return {"optedIn": opted_in, "preferences": {}}
 
@@ -883,7 +905,8 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", len(body))
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Origin", _cors_for(self))
+        self.send_header("Vary", "Origin")
         self.end_headers()
         self.wfile.write(body)
 
@@ -908,7 +931,8 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
 
     def do_OPTIONS(self):
         self.send_response(204)
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Origin", _cors_for(self))
+        self.send_header("Vary", "Origin")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS, HEAD")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
@@ -923,11 +947,13 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
                 "Content-Type",
                 "application/json" if path.startswith("/api/") else "text/html; charset=utf-8",
             )
-            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Origin", _cors_for(self))
+            self.send_header("Vary", "Origin")
             self.end_headers()
             return
         self.send_response(200)
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Origin", _cors_for(self))
+        self.send_header("Vary", "Origin")
         self.end_headers()
 
     # ── GET routing ──────────────────────────────────────────────────────────
@@ -1156,7 +1182,8 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
             with urllib.request.urlopen(req, timeout=30) as resp:
                 resp_body = resp.read()
                 self.send_response(resp.status)
-                self.send_header("Access-Control-Allow-Origin", "*")
+                self.send_header("Access-Control-Allow-Origin", _cors_for(self))
+                self.send_header("Vary", "Origin")
                 self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
                 ct = resp.headers.get("Content-Type", "application/json")
                 self.send_header("Content-Type", ct)
@@ -1166,7 +1193,8 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
         except urllib.error.HTTPError as e:
             resp_body = e.read()
             self.send_response(e.code)
-            self.send_header("Access-Control-Allow-Origin", "*")
+            self.send_header("Access-Control-Allow-Origin", _cors_for(self))
+            self.send_header("Vary", "Origin")
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", len(resp_body))
             self.end_headers()
