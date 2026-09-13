@@ -61,7 +61,7 @@ ORCAMINT_FILE     = os.path.join(os.path.dirname(os.path.abspath(__file__)), "or
 # SMTP — set as Railway env vars (never hard-code credentials)
 SMTP_HOST         = os.environ.get("SMTP_HOST", "")        # e.g. "smtp.gmail.com"
 SMTP_PORT         = int(os.environ.get("SMTP_PORT", 587))
-SMTP_USER         = os.environ.get("SMTP_USER", "")        # e.g. "orcamail@gmail.com"
+SMTP_USER         = os.environ.get("SMTP_USER", "")        # e.g. "orcamail@example.com"
 SMTP_PASS         = os.environ.get("SMTP_PASS", "")        # app password
 NOTIFY_FROM       = os.environ.get("NOTIFY_FROM", "orcamail@orcamail.ai")
 # Auto-notify — private: stored ONLY as Railway env vars, never in code or responses
