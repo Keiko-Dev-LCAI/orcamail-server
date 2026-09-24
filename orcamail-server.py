@@ -1055,6 +1055,27 @@ class OrcaMailHandler(BaseHTTPRequestHandler):
                                download_name="OrcaMail.apk")
             return
 
+        # ── Get LCAI on-ramp widget assets (/getlcai/*.js) ────────
+        if path.startswith("/getlcai/") and path.endswith(".js"):
+            fname = os.path.basename(path)
+            here = os.path.dirname(os.path.abspath(__file__))
+            fpath = os.path.join(here, "getlcai", fname)
+            if os.path.isfile(fpath):
+                try:
+                    with open(fpath, "rb") as f:
+                        body = f.read()
+                    self.send_response(200)
+                    self.send_header("Content-Type", "application/javascript; charset=utf-8")
+                    self.send_header("Content-Length", len(body))
+                    self.send_header("Cache-Control", "public, max-age=86400")
+                    self.end_headers()
+                    self.wfile.write(body)
+                except Exception as e:
+                    self._send_error(f"Failed to serve file: {e}", 500)
+            else:
+                self._send_error("Not found", 404)
+            return
+
         self._send_error("Not found", 404)
 
     # ── POST routing ─────────────────────────────────────────────────────────
